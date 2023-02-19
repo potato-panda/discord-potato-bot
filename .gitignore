@@ -1,0 +1,7 @@
+*.iws
+.gradle
+.idea/libraries/
+build
+node_modules
+tasks.xml
+workspace.xml
