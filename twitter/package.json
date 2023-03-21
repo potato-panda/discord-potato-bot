@@ -1,0 +1,27 @@
+{
+  "name": "twitter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node app/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "inversify": "^6.0.1",
+    "inversify-express-utils": "^6.4.3",
+    "nats": "^2.13.1",
+    "redis": "^4.6.5",
+    "reflect-metadata": "^0.1.13",
+    "ts-node": "^10.9.1",
+    "twitter-api-v2": "^1.14.2",
+    "typescript": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.3"
+  }
+}

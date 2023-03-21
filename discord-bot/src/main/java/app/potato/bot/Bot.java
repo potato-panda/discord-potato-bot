@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import static app.potato.bot.services.SlashCommandsService.setGlobalSlashCommands;
 import static app.potato.bot.services.SlashCommandsService.setGuildSlashCommands;
-import static app.potato.bot.utils.Utils.getListenersAsArray;
+import static app.potato.bot.utils.ListenerUtil.getListenersAsArray;
 
 public
 class Bot {
@@ -23,24 +23,26 @@ class Bot {
             env = "DEV";
         }
         String botToken = System.getenv( "BOT_TOKEN" );
-        if ( botToken.isEmpty( ) ) {
+        if ( botToken.isEmpty() ) {
             throw new Exception( "BOT_TOKEN env var must be provided" );
         }
 
         JDABuilder builder = JDABuilder.createDefault( botToken );
 
-        builder.enableIntents(
-                GatewayIntent.MESSAGE_CONTENT,
-                GatewayIntent.GUILD_MESSAGES
-        );
+        builder.enableIntents( GatewayIntent.MESSAGE_CONTENT,
+                               GatewayIntent.GUILD_MESSAGES );
 
-        JDA jda = builder.build( );
+        JDA jda = builder.build();
 
         String guildId = System.getenv( "GUILD_ID" );
 
-        jda.addEventListener( getListenersAsArray( ) );
+        jda.addEventListener( getListenersAsArray() );
 
-        jda.awaitReady( );
+        NatsConnection.instance();
+
+        RedisConnection.instance();
+
+        jda.awaitReady();
 
 
         // Register Guild Commands when in Dev Mode
@@ -49,10 +51,8 @@ class Bot {
                 Guild guild = jda.getGuildById( guildId );
 
                 if ( guild != null ) {
-                    logger.info(
-                            "Bot is a member of guild: {}",
-                            guildId
-                    );
+                    logger.info( "Bot is a member of guild: {}",
+                                 guildId );
 
                     setGuildSlashCommands( guild );
 

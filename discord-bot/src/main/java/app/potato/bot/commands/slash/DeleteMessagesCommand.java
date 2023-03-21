@@ -18,7 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static app.potato.bot.commands.slash.SlashCommand.AbstractSlashCommand;
 
 @SlashCommand( commandName = "clear", commandDesc = "Clears messages" )
 public
@@ -28,25 +31,27 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
             DeleteMessagesCommand.class );
 
     public
-    DeleteMessagesCommand( String commandName, String commandDesc ) {
-        super( commandName, commandDesc );
+    DeleteMessagesCommand( String commandName,
+                           String commandDesc )
+    {
+        super( commandName,
+               commandDesc );
     }
 
     @Override
     public
-    SlashCommandData commandData( ) {
-        return Commands.slash( commandName, commandDesc )
+    SlashCommandData commandData() {
+        return Commands.slash( commandName,
+                               commandDesc )
                        .setDefaultPermissions( DefaultMemberPermissions.ENABLED )
                        .addOption( OptionType.INTEGER,
                                    "amount",
                                    "number of messages up to last 100",
-                                   true
-                       )
+                                   true )
                        .addOption( OptionType.USER,
                                    "user",
                                    "delete messages of specific user",
-                                   false
-                       );
+                                   false );
 
 
     }
@@ -55,72 +60,88 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
     public
     void execute( SlashCommandInteractionEvent event ) {
 
-        event.deferReply( )
-             .setEphemeral( true )
-             .queue( );
+        event.deferReply().setEphemeral( true ).queue();
 
         // Check if user has permission to delete messages
-        if ( !Objects.requireNonNull( event.getMember( ) )
-                     .hasPermission( Permission.MESSAGE_MANAGE ) ) {
-            event.getHook( )
-                 .sendMessage( "You do not have permission to delete messages." )
+        if ( !Objects.requireNonNull( event.getMember() )
+                     .hasPermission( Permission.MESSAGE_MANAGE ) )
+        {
+            event.getHook()
+                 .sendMessage( "You do not have permission to delete messages. This message is deleted after 10 seconds." )
                  .setEphemeral( true )
-                 .queue( );
+                 .queue( message -> {
+                     message.delete()
+                            .queueAfter( 1_000 * 10,
+                                         TimeUnit.MILLISECONDS );
+                 } );
+
             return;
         }
 
-        User target = event.getOption( "user", OptionMapping::getAsUser );
-        // Check for optional member info, and if user can affect chosen member
-        Member member = event.getOption( "user", OptionMapping::getAsMember );
-        if ( member != null && !event.getMember( )
-                                     .canInteract( member ) ) {
-            event.getHook( )
+        User target = event.getOption( "user",
+                                       OptionMapping::getAsUser );
+        // Check for optional member metadata, and if user can affect chosen member
+        Member member = event.getOption( "user",
+                                         OptionMapping::getAsMember );
+        if ( member != null && !event.getMember().canInteract( member ) ) {
+            event.getHook()
                  .sendMessage( "You cannot delete messages by this user." )
                  .setEphemeral( true )
-                 .queue( );
+                 .queue();
+
             return;
         }
 
 
-        Integer amount = event.getOption( "amount", OptionMapping::getAsInt );
+        Integer amount = event.getOption( "amount",
+                                          OptionMapping::getAsInt );
 
-        MessageChannel messageChannel = event.getMessageChannel( );
+        MessageChannel messageChannel = event.getMessageChannel();
 
         List<Message> pastXMessages = collectXMessages( event,
                                                         amount,
                                                         member != null
-                                                        ? member.getUser( )
-                                                        : null
-        );
+                                                        ? member.getUser()
+                                                        : null );
 
-        CompletableFuture[] futures = messageChannel.purgeMessages(
-                                                            pastXMessages )
-                                                    .toArray( new CompletableFuture[]{ } );
-        CompletableFuture.allOf( futures )
-                         .thenAccept( unused -> {
-                             String message = "Messages " + ( member != null
-                                                              ? "by " + (
-                                     member.getNickname( ) != null
-                                     ? member.getNickname( )
-                                     : member.getEffectiveName( ) ) + " "
-                                                              : "" ) + "deleted: " + pastXMessages.size( );
+        CompletableFuture<?>[] deletedMessageFutures
+                = messageChannel.purgeMessages( pastXMessages )
+                                .toArray( new CompletableFuture[]{} );
 
-                             event.getHook( )
-                                  .sendMessage( message )
-                                  .setEphemeral( true )
-                                  .queue( );
+        CompletableFuture.allOf( deletedMessageFutures ).thenAccept( unused -> {
+            assert member != null;
+            String username = member.getNickname() != null
+                              ? member.getNickname()
+                              : member.getEffectiveName();
 
-                             logger.info( message );
-                         } );
+            String message
+                    = String.format( "Messages {} deleted: {} . This message is deleted in 10 seconds",
+                                     username != null ? "by " + username : "",
+                                     pastXMessages.size() );
+
+            event.getHook()
+                 .sendMessage( message )
+                 .setEphemeral( true )
+                 .queue( message1 -> message1.delete()
+                                             .queueAfter( 1_000 * 10,
+                                                          TimeUnit.MILLISECONDS ) );
+
+            logger.info( message );
+        } );
 
     }
 
     private
     List<Message> collectXMessages( SlashCommandInteractionEvent event,
                                     Integer amount,
-                                    User user ) {
+                                    User user )
+    {
         List<Message> listMessages = new ArrayList<>( 0 );
-        return collectXMessages( event, amount, user, listMessages, false );
+        return collectXMessages( event,
+                                 amount,
+                                 user,
+                                 listMessages,
+                                 false );
     }
 
     private
@@ -128,61 +149,56 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
                                     Integer amount,
                                     User user,
                                     List<Message> pastXMessages,
-                                    boolean searchTerminated ) {
-        MessageChannel messageChannel = event.getMessageChannel( );
-        String messageId = event.getMessageChannel( )
-                                .getLatestMessageId( );
+                                    boolean searchTerminated )
+    {
+        MessageChannel messageChannel = event.getMessageChannel();
+        String messageId = event.getMessageChannel()
+                                .getLatestMessageId();
 
-        // Check if messages exceeds given amount, limit amount
-        if ( pastXMessages.size( ) >= amount ) {
-            return pastXMessages.stream( )
-                                .limit( amount )
-                                .collect( Collectors.toList( ) );
-        }
-        // Return results if amount reached or search reached termination (no more messages)
-        else if ( pastXMessages.size( ) == amount || searchTerminated ) {
+        // Terminating condition (no more messages)
+        if ( searchTerminated ) {
             return pastXMessages;
         }
-        // Recurse
+        // Check if messages exceeds given amount, limit amount
+        else if ( pastXMessages.size() >= amount ) {
+            return pastXMessages.stream()
+                                .limit( amount )
+                                .collect( Collectors.toList() );
+        }
+        // Main recursion
         else {
             List<Message> resultMessages;
             // If user is provided, filter messages for user
             if ( user != null ) {
                 resultMessages = messageChannel.getHistoryBefore( messageId,
-                                                                  100
-                                               )
-                                               .complete( )
-                                               .getRetrievedHistory( )
-                                               .stream( )
-                                               .filter( message -> message.getAuthor( )
-                                                                          .getId( )
-                                                                          .equals(
-                                                                                  user.getId( ) ) )
-                                               .collect( Collectors.toList( ) );
+                                                                  100 )
+                                               .complete()
+                                               .getRetrievedHistory()
+                                               .stream()
+                                               .filter( message -> message.getAuthor()
+                                                                          .getId()
+                                                                          .equals( user.getId() ) )
+                                               .collect( Collectors.toList() );
 
             } else {
-                resultMessages = messageChannel.getHistory( )
+                resultMessages = messageChannel.getHistory()
                                                .retrievePast( 100 )
-                                               .complete( )
-                                               .stream( )
-                                               .filter( message -> Objects.requireNonNull(
-                                                                                  event.getMember( ) )
-                                                                          .canInteract(
-                                                                                  Objects.requireNonNull(
-                                                                                          message.getMember( ) ) ) )
-                                               .collect( Collectors.toList( ) );
+                                               .complete()
+                                               .stream()
+                                               .filter( message -> Objects.requireNonNull( event.getMember() )
+                                                                          .canInteract( Objects.requireNonNull( message.getMember() ) ) )
+                                               .collect( Collectors.toList() );
             }
             pastXMessages.addAll( resultMessages );
 
             // If no more message, set to terminate recursion
-            searchTerminated = resultMessages.size( ) == 0;
+            searchTerminated = resultMessages.size() == 0;
 
             return collectXMessages( event,
                                      amount,
                                      user,
                                      pastXMessages,
-                                     searchTerminated
-            );
+                                     searchTerminated );
         }
     }
 }

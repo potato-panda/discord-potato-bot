@@ -9,13 +9,17 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 
+import static app.potato.bot.commands.slash.SlashCommand.AbstractSlashCommand;
+
 
 @SlashCommand( commandName = "debug", commandDesc = "Commands for debugging" )
 public final
 class DebugCommand extends AbstractSlashCommand {
 
     public
-    DebugCommand( String commandName, String commandDesc ) {
+    DebugCommand( String commandName,
+                  String commandDesc )
+    {
         super(
                 commandName,
                 commandDesc
@@ -24,7 +28,7 @@ class DebugCommand extends AbstractSlashCommand {
 
     @Override
     public
-    SlashCommandData commandData( ) {
+    SlashCommandData commandData() {
 
         return Commands.slash(
                                commandName,
@@ -52,25 +56,25 @@ class DebugCommand extends AbstractSlashCommand {
         );
         amount = amount < 1 ? amount : 1;
 
-        event.deferReply( )
+        event.deferReply()
              .setEphemeral( true )
-             .queue( );
+             .queue();
 
         for ( Integer i = 0; i < amount; i++ ) {
-            String messageString = LoremIpsum.getInstance( )
+            String messageString = LoremIpsum.getInstance()
                                              .getWords(
                                                      2,
                                                      10
                                              );
 
-            event.getMessageChannel( )
+            event.getMessageChannel()
                  .sendMessage( messageString )
-                 .complete( );
+                 .complete();
         }
 
-        event.getHook( )
+        event.getHook()
              .sendMessage( "Executed command" )
-             .queue( );
+             .queue();
 
     }
 }

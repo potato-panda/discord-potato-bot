@@ -8,25 +8,31 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
-import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+
+import static app.potato.bot.commands.slash.SlashCommand.AbstractSlashCommand;
 
 @SlashCommand( commandName = "ban", commandDesc = "Bans a user" )
 public final
 class BanCommand extends AbstractSlashCommand {
 
     public
-    BanCommand( String commandName, String commandDesc ) {
-        super( commandName, commandDesc );
+    BanCommand( String commandName,
+                String commandDesc )
+    {
+        super( commandName,
+               commandDesc );
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public
-    SlashCommandData commandData( ) {
-        return Commands.slash( commandName, commandDesc );
+    SlashCommandData commandData() {
+        return Commands.slash( commandName,
+                               commandDesc );
     }
 
     @Override
@@ -34,34 +40,39 @@ class BanCommand extends AbstractSlashCommand {
     void execute( SlashCommandInteractionEvent event ) {
 
         // double check permissions, don't trust discord on this!
-        if ( !Objects.requireNonNull( event.getMember( ) )
-                     .hasPermission( Permission.BAN_MEMBERS ) ) {
+        if ( !Objects.requireNonNull( event.getMember() )
+                     .hasPermission( Permission.BAN_MEMBERS ) )
+        {
             event.reply( "You cannot ban members! Nice try ;)" )
                  .setEphemeral( true )
-                 .queue( );
+                 .queue();
             return;
         }
 
-        User target = event.getOption( "user", OptionMapping::getAsUser );
+        User target = event.getOption( "user",
+                                       OptionMapping::getAsUser );
         // optionally check for member information
-        Member member = event.getOption( "user", OptionMapping::getAsMember );
+        Member member = event.getOption( "user",
+                                         OptionMapping::getAsMember );
         assert member != null;
-        if ( !event.getMember( )
-                   .canInteract( member ) ) {
+        if ( !event.getMember()
+                   .canInteract( member ) )
+        {
             event.reply( "You cannot ban this user." )
                  .setEphemeral( true )
-                 .queue( );
+                 .queue();
             return;
         }
 
         // Before starting our ban request, tell the user we received the command
         // This sends a "Bot is thinking..." message which is later edited once we finished
-        event.deferReply( )
-             .queue( );
-        String reason = event.getOption( "reason", OptionMapping::getAsString );
+        event.deferReply()
+             .queue();
+        String reason = event.getOption( "reason",
+                                         OptionMapping::getAsString );
         assert target != null;
         AuditableRestAction<Void> action =
-                Objects.requireNonNull( event.getGuild( ) )
+                Objects.requireNonNull( event.getGuild() )
                        .ban( target,
                              0,
                              TimeUnit.MILLISECONDS
@@ -70,18 +81,19 @@ class BanCommand extends AbstractSlashCommand {
             action =
                     action.reason( reason ); // set the reason for the ban in the audit logs and ban log
         action.queue( v -> {
-            // Edit the thinking message with our response on success
-            event.getHook( )
-                 .editOriginal( "**" + target.getAsTag( ) + "** was banned by **" + event.getUser( )
-                                                                                         .getAsTag( ) + "**!" )
-                 .queue( );
-        }, error -> {
-            // Tell the user we encountered some error
-            event.getHook( )
-                 .editOriginal( "Some error occurred, try again!" )
-                 .queue( );
-            error.printStackTrace( );
-        } );
+                          // Edit the thinking message with our response on success
+                          event.getHook()
+                               .editOriginal( "**" + target.getAsTag() + "** was banned by **" + event.getUser()
+                                                                                                      .getAsTag() + "**!" )
+                               .queue();
+                      },
+                      error -> {
+                          // Tell the user we encountered some error
+                          event.getHook()
+                               .editOriginal( "Some error occurred, try again!" )
+                               .queue();
+                          error.printStackTrace();
+                      } );
     }
 
 
