@@ -22,7 +22,7 @@ class PixivPostLinkOptions extends PixivPostLinkRequest {
     public
     PixivPostLinkOptions( String postId ) {
         super( postId,
-               ImageRequestQuality.regular );
+               ImageRequestQuality.REGULAR );
         this.pick        = true;
         this.selectPages = new ArrayList<>();
     }

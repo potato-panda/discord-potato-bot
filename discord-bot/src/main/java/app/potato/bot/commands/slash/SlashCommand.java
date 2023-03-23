@@ -8,6 +8,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.concurrent.ExecutionException;
 
 @Retention( RetentionPolicy.RUNTIME )
 @Target( { ElementType.TYPE } )
@@ -38,7 +39,8 @@ public
         SlashCommandData commandData();
 
         public abstract
-        void execute( SlashCommandInteractionEvent event );
+        void execute( SlashCommandInteractionEvent event )
+        throws ExecutionException, InterruptedException;
 
     }
 }

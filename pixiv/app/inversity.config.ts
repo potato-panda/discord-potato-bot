@@ -4,14 +4,10 @@ import { PixivPostRequestListener } from './listeners';
 import { BrowserStorageStateService } from './services/BrowserStorageStateService';
 import { DownloadService } from './services/DownloadService';
 import { PixivScraper } from './services/scraper/PixivScraper';
-import { PixivDownloadStrategy } from './services/scraper/strategies/PixivDownloadStrategy';
 import { TYPES } from './Types';
 
 const container = new Container();
 
-container
-  .bind<PixivDownloadStrategy>(TYPES.DownloadToServerStrategy)
-  .to(PixivDownloadStrategy);
 container
   .bind<BrowserStorageStateService>(TYPES.BrowserStorageStateService)
   .to(BrowserStorageStateService);

@@ -6,7 +6,8 @@ public
 record FileDownloadResponse(
         Optional<FileDownloadMetadata> metadata,
         boolean success,
-        String message
+        String message,
+        String key
 
 )
 {
@@ -15,8 +16,7 @@ record FileDownloadResponse(
             String mimeType,
             Integer size,
             String fileName,
-            String fileExtension,
-            String key
+            String fileExtension
     )
     {
         public

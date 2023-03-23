@@ -7,8 +7,8 @@ import static app.potato.bot.utils.TimeConstants.DAY;
 
 public
 class TimestampUtil {
-    public
-    String getDiscordTimestamp( Long timeInSeconds ) {
+    public static
+    String getFormattedDiscordTimestamp( Long timeInSeconds ) {
         Objects.requireNonNull( timeInSeconds );
         long lTime      = new Date( timeInSeconds ).getTime();
         long oneDayAgo  = new Date().getTime() - DAY;

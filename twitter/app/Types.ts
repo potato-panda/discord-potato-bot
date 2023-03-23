@@ -6,5 +6,3 @@ export const TYPES = {
   TwitterApiSecret: Symbol.for('TwitterApiSecret'),
   TwitterPostRequestListener: Symbol.for('TwitterPostRequestListener'),
 };
-
-

@@ -39,5 +39,4 @@
     <orderEntry type="library" scope="RUNTIME" name="Gradle: net.i2p.crypto:eddsa:0.3.0" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: net.java.dev.jna:jna:4.4.0" level="project" />
   </component>
-  <component name="TestModuleProperties" production-module="discord-bot.main" />
 </module>

@@ -17,12 +17,12 @@ class PixivPostLinkRequest {
     PixivPostLinkRequest( String postId )
     {
         this.postId  = postId;
-        this.quality = ImageRequestQuality.regular;
+        this.quality = ImageRequestQuality.REGULAR;
     }
 
     public
     enum ImageRequestQuality {
-        original( "original" ), regular( "regular" );
+        ORIGINAL( "original" ), REGULAR( "regular" );
 
         private final String value;
 

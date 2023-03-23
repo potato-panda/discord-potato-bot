@@ -1,23 +1,42 @@
 import cluster from 'cluster';
 import { log } from 'console';
-import process from 'process';
+
+import * as dotenv from 'dotenv';
+dotenv.config({ path: `${__dirname}//.env` });
 
 import 'reflect-metadata';
 
-import { appCPUs } from './constants.config';
-import { worker } from './Worker';
+import './constants.config';
 
-log();
-if (cluster.isPrimary && !process.env.DEBUG) {
-  log(`Primary ${process.pid} is running`);
+import { InversifyExpressServer } from 'inversify-express-utils';
+import './Redis';
+import './Mongoose'
 
-  for (let i = 0; i < appCPUs; i++) {
-    cluster.fork();
+import './controllers';
+import { App } from './App';
+import { appPort } from './constants.config';
+import { container } from './inversity.config';
+import { PixivPostRequestListener } from './listeners';
+import { nats } from './Nats';
+
+(async () => {
+  container
+    .resolve<PixivPostRequestListener>(PixivPostRequestListener)
+    .listen(await nats);
+
+  if (!process.env.DEBUG) {
+    let server = new InversifyExpressServer(container);
+    server.setConfig((app) => {
+      new App(app);
+    });
+    let app = server.build();
+
+    app.listen(appPort, () => {
+      log(
+        `Worker ${cluster?.worker?.id} (PID:${process.pid}) listening on port ${appPort}`,
+      );
+    });
+  } else {
+    log(`Worker ${cluster?.worker?.id || 'null'} (PID:${process.pid}) started`);
   }
-
-  cluster.on('exit', (worker, code, signal) => {
-    log(`Worker ${worker.id} (PID:${worker.process.pid}) died`);
-  });
-} else {
-  worker();
-}
+})();

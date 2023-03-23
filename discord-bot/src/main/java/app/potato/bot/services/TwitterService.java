@@ -1,10 +1,12 @@
 package app.potato.bot.services;
 
+import app.potato.bot.MongoDBConnection;
 import app.potato.bot.NatsConnection;
-import app.potato.bot.RedisConnection;
 import app.potato.bot.listeners.handlers.TwitterPostLinkRequest;
+import app.potato.bot.models.TwitterPostRequest;
 import app.potato.bot.utils.ChannelUtil;
 import app.potato.bot.utils.NatsUtil;
+import com.mongodb.client.MongoCollection;
 import io.nats.client.Connection;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.slf4j.Logger;
@@ -12,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -21,6 +22,7 @@ import static app.potato.bot.services.ContentModerationService.requestImageConte
 import static app.potato.bot.services.FileDownloadResponse.FileDownloadMetadata;
 import static app.potato.bot.services.TwitterService.TwitterModeratedFile.TwitterModerationData;
 import static app.potato.bot.services.TwitterService.TwitterPostLinkRequestReply.TwitterPostMetadata;
+import static com.mongodb.client.model.Filters.eq;
 
 public
 class TwitterService {
@@ -70,31 +72,45 @@ class TwitterService {
                                                                     fileDownloadMetadata
                                                                     = fileDownloadResponse.metadata()
                                                                                           .get();
-                                                            String
-                                                                    base64ImageData
-                                                                    = RedisConnection.instance()
-                                                                                     .get( fileDownloadMetadata.key() );
 
-                                                            byte[] imageBytes
-                                                                    = Base64.getDecoder()
-                                                                            .decode( base64ImageData );
+                                                            MongoCollection<TwitterPostRequest>
+                                                                    collection
+                                                                    = MongoDBConnection.instance()
+                                                                                       .getDatabase()
+                                                                                       .getCollection( "TwitterPostRequests",
+                                                                                                       TwitterPostRequest.class );
+                                                            TwitterPostRequest
+                                                                    twitterPostRequest
+                                                                    = collection.find()
+                                                                                .filter( eq( "key",
+                                                                                             fileDownloadResponse.key() ) )
+                                                                                .first();
 
-                                                            TwitterModerationData
-                                                                    moderationData
-                                                                    = new TwitterModerationData( twitterPostMetadata.suggestive(),
-                                                                                                 !twitterPostMetadata.suggestive() && !nsfwChannel
-                                                                                                 ? requestImageContentModeration( event,
-                                                                                                                                  fileDownloadMetadata.mimeType(),
-                                                                                                                                  imageBytes )
-                                                                                                 : Optional.empty() );
+                                                            if ( twitterPostRequest != null ) {
 
-                                                            TwitterModeratedFile
-                                                                    result
-                                                                    = new TwitterModeratedFile( fileDownloadMetadata,
-                                                                                                imageBytes,
-                                                                                                moderationData );
+                                                                byte[]
+                                                                        imageBytes
+                                                                        = twitterPostRequest.getData()
+                                                                                            .getData();
 
-                                                            twitterServiceResults.add( result );
+
+                                                                TwitterModerationData
+                                                                        moderationData
+                                                                        = new TwitterModerationData( twitterPostMetadata.suggestive(),
+                                                                                                     !twitterPostMetadata.suggestive() && !nsfwChannel
+                                                                                                     ? requestImageContentModeration( event,
+                                                                                                                                      fileDownloadMetadata.mimeType(),
+                                                                                                                                      imageBytes )
+                                                                                                     : Optional.empty() );
+
+                                                                TwitterModeratedFile
+                                                                        result
+                                                                        = new TwitterModeratedFile( fileDownloadMetadata,
+                                                                                                    imageBytes,
+                                                                                                    moderationData );
+
+                                                                twitterServiceResults.add( result );
+                                                            }
 
                                                         }
                                                         catch ( Exception e ) {

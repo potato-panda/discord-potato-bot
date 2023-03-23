@@ -75,10 +75,13 @@ class ContentModerationService {
             byte[] requestBodyAsBytes = getRequestBodyAsBytes( imageUrl );
             builder.header( "Content-Type",
                             "application/json" );
+            logger.info( "MODERATION Content-Type: application/json" );
             builder.POST( HttpRequest.BodyPublishers.ofByteArray( requestBodyAsBytes ) );
         } else if ( imageBytes != null && contentType != null ) {
             builder.header( "Content-Type",
                             contentType );
+            logger.info( "MODERATION Content-Type: {}",
+                         contentType );
             builder.POST( HttpRequest.BodyPublishers.ofByteArray( imageBytes ) );
         }
 
@@ -107,9 +110,8 @@ class ContentModerationService {
         ContentModerationRequestBodyWithUrl requestBody
                 = new ContentModerationRequestBodyWithUrl( imageUrl );
 
-        ObjectWriter objectWriter
-                = new ObjectMapper().writer()
-                                    .withDefaultPrettyPrinter();
+        ObjectWriter objectWriter = new ObjectMapper().writer()
+                                                      .withDefaultPrettyPrinter();
 
         return objectWriter.writeValueAsBytes( requestBody );
     }
@@ -140,7 +142,9 @@ class ContentModerationService {
             @JsonProperty( "AdvancedInfo" ) Optional<ArrayList<AdvancedInfo>> advancedInfo,
             @JsonProperty( "Status" ) Optional<Status> status,
             @JsonProperty( "TrackingId" ) Optional<String> trackingId,
-            Optional<ContentModerationError> error
+            @JsonProperty( "Message" ) Optional<String> message,
+            @JsonProperty( "error" ) Optional<ContentModerationResponseError> error,
+            @JsonProperty( "Errors" ) Optional<ContentModerationError[]> errors
     )
     {
 
@@ -160,18 +164,22 @@ class ContentModerationService {
         {}
 
         public
+        record ContentModerationResponseError(
+                @JsonProperty( "code" ) String code,
+                @JsonProperty( "message" ) String message
+        ) {}
+
+        public
         record ContentModerationError(
-                String code,
-                String message
+                @JsonProperty( "Title" ) String title,
+                @JsonProperty( "Message" ) String message
         ) {}
     }
 
     public static
     class ContentModerationRequestBodyWithUrl {
-        @JsonProperty( "DataRepresentation" )
-        String dataRepresentation;
-        @JsonProperty( "Value" )
-        String value;
+        @JsonProperty( "DataRepresentation" ) String dataRepresentation;
+        @JsonProperty( "Value" )              String value;
 
         public
         ContentModerationRequestBodyWithUrl( String url )
@@ -181,10 +189,8 @@ class ContentModerationService {
         }
 
         private
-        ContentModerationRequestBodyWithUrl(
-                String dataRepresentation,
-                String value
-        )
+        ContentModerationRequestBodyWithUrl( String dataRepresentation,
+                                             String value )
         {
             this.dataRepresentation = dataRepresentation;
             this.value              = value;

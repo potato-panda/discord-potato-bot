@@ -31,7 +31,7 @@ class SlashCommandInteractionListener extends ListenerAdapter {
                         "Command \"{}\" could not be found",
                         commandName
                 );
-                event.reply( "Command could not be found." )
+                event.getHook().sendMessage( "Command could not be found." )
                      .setEphemeral( true )
                      .queue();
             } else {
@@ -39,7 +39,7 @@ class SlashCommandInteractionListener extends ListenerAdapter {
                         "Error executing the \"{}\" command",
                         commandName
                 );
-                event.reply( "Error executing command." )
+                event.getHook().sendMessage( "Error executing command." )
                      .setEphemeral( true )
                      .queue();
             }

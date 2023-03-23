@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -58,7 +59,9 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
 
     @Override
     public
-    void execute( SlashCommandInteractionEvent event ) {
+    void execute( SlashCommandInteractionEvent event )
+    throws ExecutionException, InterruptedException
+    {
 
         event.deferReply().setEphemeral( true ).queue();
 
@@ -83,6 +86,7 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
         // Check for optional member metadata, and if user can affect chosen member
         Member member = event.getOption( "user",
                                          OptionMapping::getAsMember );
+
         if ( member != null && !event.getMember().canInteract( member ) ) {
             event.getHook()
                  .sendMessage( "You cannot delete messages by this user." )
@@ -108,26 +112,31 @@ class DeleteMessagesCommand extends AbstractSlashCommand {
                 = messageChannel.purgeMessages( pastXMessages )
                                 .toArray( new CompletableFuture[]{} );
 
-        CompletableFuture.allOf( deletedMessageFutures ).thenAccept( unused -> {
-            assert member != null;
-            String username = member.getNickname() != null
-                              ? member.getNickname()
-                              : member.getEffectiveName();
+        CompletableFuture.allOf( deletedMessageFutures )
+                         .whenComplete( ( unused, throwable ) -> {
+                             String username = "";
+                             if ( member != null ) {
+                                 if ( member.getNickname() != null ) {
+                                     username = member.getNickname();
+                                 } else {
+                                     username = member.getEffectiveName();
+                                 }
+                             }
+                             String message
+                                     = String.format( "Messages%s deleted: %s",
+                                                      !username.isEmpty()
+                                                      ? " (" + username + ")"
+                                                      : "",
+                                                      pastXMessages.size() );
 
-            String message
-                    = String.format( "Messages {} deleted: {} . This message is deleted in 10 seconds",
-                                     username != null ? "by " + username : "",
-                                     pastXMessages.size() );
+                             event.getHook()
+                                  .sendMessage( message )
+                                  .setEphemeral( true )
+                                  .queue();
 
-            event.getHook()
-                 .sendMessage( message )
-                 .setEphemeral( true )
-                 .queue( message1 -> message1.delete()
-                                             .queueAfter( 1_000 * 10,
-                                                          TimeUnit.MILLISECONDS ) );
-
-            logger.info( message );
-        } );
+                             logger.info( message );
+                         } )
+                         .get();
 
     }
 

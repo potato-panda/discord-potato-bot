@@ -1,26 +1,30 @@
 package app.potato.bot.services;
 
+import app.potato.bot.MongoDBConnection;
 import app.potato.bot.NatsConnection;
-import app.potato.bot.RedisConnection;
 import app.potato.bot.listeners.handlers.PixivPostLinkRequest;
+import app.potato.bot.models.PixivPostRequest;
 import app.potato.bot.utils.ChannelUtil;
 import app.potato.bot.utils.NatsUtil;
+import com.mongodb.client.MongoCollection;
 import io.nats.client.Connection;
+import io.nats.client.Message;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 
 import static app.potato.bot.services.ContentModerationService.ContentModerationResponse;
 import static app.potato.bot.services.ContentModerationService.requestImageContentModeration;
 import static app.potato.bot.services.FileDownloadResponse.FileDownloadMetadata;
 import static app.potato.bot.services.PixivService.PixivModeratedFile.PixivModerationData;
 import static app.potato.bot.services.PixivService.PixivPostLinkRequestReply.PixivPostMetadata;
+import static com.mongodb.client.model.Filters.eq;
 
 public
 class PixivService {
@@ -31,25 +35,29 @@ class PixivService {
     public static
     PixivServiceResult requestPost( MessageReceivedEvent event,
                                     PixivPostLinkRequest request )
-    throws IOException, InterruptedException, ExecutionException
+    throws IOException, InterruptedException
     {
         byte[] requestBytes = NatsUtil.getObjectBytes( request );
 
         Connection nc = NatsConnection.instance();
 
-        PixivPostLinkRequestReply pixivPostLinkRequestReply
-                = nc.request( "pixiv.post.request",
-                              requestBytes ).handle( ( message, throwable ) -> {
-            try {
-                return NatsUtil.getMessageObject( message,
-                                                  PixivPostLinkRequestReply.class );
-            }
-            catch ( Exception e ) {
-                logger.error( "Error transforming response : {}",
-                              e.getMessage() );
-                return null;
-            }
-        } ).get();
+        PixivPostLinkRequestReply pixivPostLinkRequestReply;
+        Message message = nc.request( "pixiv.post.request",
+                                      requestBytes,
+                                      Duration.ofMinutes( 3 ) );
+
+        Objects.requireNonNull( message,
+                                "Request Timed out" );
+
+        try {
+            pixivPostLinkRequestReply = NatsUtil.getMessageObject( message,
+                                                                   PixivPostLinkRequestReply.class );
+        }
+        catch ( Exception e ) {
+            logger.error( "Error transforming response : {}",
+                          e.getMessage() );
+            return null;
+        }
 
         ArrayList<FileDownloadResponse> fileDownloadResponses
                 = pixivPostLinkRequestReply.downloadResponses();
@@ -71,33 +79,44 @@ class PixivService {
                                                                     = fileDownloadResponse.metadata()
                                                                                           .get();
 
-                                                            String
-                                                                    base64ImageData
-                                                                    = RedisConnection.instance()
-                                                                                     .get( fileDownloadMetadata.key() );
+                                                            MongoCollection<PixivPostRequest>
+                                                                    collection
+                                                                    = MongoDBConnection.instance()
+                                                                                       .getDatabase()
+                                                                                       .getCollection( "PixivPostRequests",
+                                                                                                       PixivPostRequest.class );
+                                                            PixivPostRequest
+                                                                    pixivPostRequest
+                                                                    = collection.find()
+                                                                                .filter( eq( "key",
+                                                                                             fileDownloadResponse.key() ) )
+                                                                                .first();
 
-                                                            byte[]
-                                                                    imageBytes
-                                                                    = Base64.getDecoder()
-                                                                            .decode( base64ImageData );
+                                                            if ( pixivPostRequest != null ) {
 
-                                                            PixivModerationData
-                                                                    moderationData
-                                                                    = new PixivModerationData( pixivPostMetadata.adult(),
-                                                                                               // Do moderation if safe for work
-                                                                                               !pixivPostMetadata.adult() && !nsfwChannel
-                                                                                               ? requestImageContentModeration( event,
-                                                                                                                                fileDownloadMetadata.mimeType(),
-                                                                                                                                imageBytes )
-                                                                                               : Optional.empty() );
+                                                                byte[]
+                                                                        imageBytes
+                                                                        = pixivPostRequest.getData()
+                                                                                          .getData();
 
-                                                            PixivModeratedFile
-                                                                    pixivModeratedFile
-                                                                    = new PixivModeratedFile( fileDownloadMetadata,
-                                                                                              imageBytes,
-                                                                                              moderationData );
+                                                                PixivModerationData
+                                                                        moderationData
+                                                                        = new PixivModerationData( pixivPostMetadata.adult(),
+                                                                                                   // Do moderation if safe for work
+                                                                                                   !pixivPostMetadata.adult() && !nsfwChannel
+                                                                                                   ? requestImageContentModeration( event,
+                                                                                                                                    fileDownloadMetadata.mimeType(),
+                                                                                                                                    imageBytes )
+                                                                                                   : Optional.empty() );
 
-                                                            pixivServiceResults.add( pixivModeratedFile );
+                                                                PixivModeratedFile
+                                                                        pixivModeratedFile
+                                                                        = new PixivModeratedFile( fileDownloadMetadata,
+                                                                                                  imageBytes,
+                                                                                                  moderationData );
+
+                                                                pixivServiceResults.add( pixivModeratedFile );
+                                                            }
                                                         }
                                                         catch ( Exception e ) {
                                                             logger.info( "Error moderating : {}",
@@ -153,9 +172,27 @@ class PixivService {
                 String userAccount,
                 boolean isAi,
                 int likes,
-                int hearts,
-                String createdAt
-        ) {}
+                int favourites,
+                String createdAt,
+                IllustrationType illustType
+        )
+        {
+            public
+            enum IllustrationType {
+                gif( "gif" ), jpg( "jpg" );
+
+                private final String value;
+
+                IllustrationType( String value ) {
+                    this.value = value;
+                }
+
+                public
+                String getValue() {
+                    return value;
+                }
+            }
+        }
     }
 
 }
