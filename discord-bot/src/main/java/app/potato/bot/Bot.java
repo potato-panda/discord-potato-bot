@@ -42,6 +42,8 @@ class Bot {
 
         RedisConnection.instance();
 
+        MongoDBConnection.instance();
+
         jda.awaitReady();
 
 

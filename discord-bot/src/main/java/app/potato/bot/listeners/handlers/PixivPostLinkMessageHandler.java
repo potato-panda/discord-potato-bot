@@ -24,7 +24,7 @@ import static app.potato.bot.listeners.handlers.PixivPostLinkRequest.ImageReques
 import static app.potato.bot.services.PixivService.*;
 import static app.potato.bot.services.PixivService.PixivPostLinkRequestReply.PixivPostMetadata;
 import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
-import static net.dv8tion.jda.api.utils.TimeUtil.getDiscordTimestamp;
+import static app.potato.bot.utils.TimestampUtil.getFormattedDiscordTimestamp;
 
 @MessageHandler
 public final
@@ -118,11 +118,11 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                                    String.valueOf( metadata.likes() ),
                                                    true )
                                         .addField( "Favourites",
-                                                   String.valueOf( metadata.hearts() ),
+                                                   String.valueOf( metadata.favourites() ),
                                                    true )
-                                        .setFooter( "on Bird app • " + getDiscordTimestamp( Date.from( ZonedDateTime.parse( metadata.createdAt() )
-                                                                                                                    .toInstant() )
-                                                                                                .getTime() ) );
+                                        .setFooter( "on Bird app • " + getFormattedDiscordTimestamp( Date.from( ZonedDateTime.parse( metadata.createdAt() )
+                                                                                                                             .toInstant() )
+                                                                                                         .getTime() ) );
 
 
             MessageEmbed embed = embedBuilder.build();
@@ -185,7 +185,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
 
                                       // Default quality
                                       ImageRequestQuality quality
-                                              = ImageRequestQuality.regular;
+                                              = ImageRequestQuality.REGULAR;
                                       // Default pick
                                       boolean pick = true;
                                       // Select pages
@@ -237,12 +237,12 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                                           case "rg", "regular" ->
                                                           {
                                                               quality
-                                                                      = ImageRequestQuality.regular;
+                                                                      = ImageRequestQuality.REGULAR;
                                                           }
                                                           case "og", "original" ->
                                                           {
                                                               quality
-                                                                      = ImageRequestQuality.original;
+                                                                      = ImageRequestQuality.ORIGINAL;
                                                           }
                                                           default -> {
                                                           }

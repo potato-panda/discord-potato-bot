@@ -1,0 +1,74 @@
+> Task :compileJava
+> Task :processResources UP-TO-DATE
+> Task :classes
+
+> Task :Bot.main()
+[main] INFO net.dv8tion.jda.api.JDA - Login Successful!
+[main] INFO org.reflections.Reflections - Reflections took 98 ms to scan 1 urls, producing 13 keys and 29 values
+[main] INFO app.potato.bot.utils.ListenerUtil - app.potato.bot.listeners.SlashCommandInteractionListener registered
+[main] INFO org.reflections.Reflections - Reflections took 15 ms to scan 1 urls, producing 10 keys and 17 values
+[main] INFO app.potato.bot.services.MessageHandlerService - Registering Message Handlers
+[main] INFO app.potato.bot.services.MessageHandlerService - Message Handler app.potato.bot.listeners.handlers.TwitterPostLinkMessageHandler registered
+[main] INFO app.potato.bot.services.MessageHandlerService - Message Handler app.potato.bot.listeners.handlers.PixivPostLinkMessageHandler registered
+[main] INFO app.potato.bot.utils.ListenerUtil - app.potato.bot.listeners.MessageReceivedListener registered
+[main] INFO app.potato.bot.utils.ListenerUtil - app.potato.bot.listeners.MessageUpdatedListener registered
+[main] INFO app.potato.bot.utils.ListenerUtil - app.potato.bot.listeners.ReadyListener registered
+[JDA MainWS-ReadThread] INFO net.dv8tion.jda.internal.requests.WebSocketClient - Connected to WebSocket
+[main] INFO app.potato.bot.NatsConnection - NATS Connected
+[JDA MainWS-ReadThread] INFO net.dv8tion.jda.api.JDA - Finished Loading!
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.ReadyListener - Bot is READY!
+[main] INFO app.potato.bot.RedisConnection - Redis Connected
+[main] INFO org.mongodb.driver.client - MongoClient with metadata {"driver": {"name": "mongo-java-driver|sync", "version": "4.9.0"}, "os": {"type": "Windows", "name": "Windows 11", "architecture": "amd64", "version": "10.0"}, "platform": "Java/Eclipse Adoptium/17.0.6+10"} created with settings MongoClientSettings{readPreference=primary, writeConcern=WriteConcern{w=null, wTimeout=null ms, journal=null}, retryWrites=true, retryReads=true, readConcern=ReadConcern{level=null}, credential=null, streamFactoryFactory=null, commandListeners=[], codecRegistry=ProvidersCodecRegistry{codecProviders=[ValueCodecProvider{}, BsonValueCodecProvider{}, DBRefCodecProvider{}, DBObjectCodecProvider{}, DocumentCodecProvider{}, CollectionCodecProvider{}, IterableCodecProvider{}, MapCodecProvider{}, GeoJsonCodecProvider{}, GridFSFileCodecProvider{}, Jsr310CodecProvider{}, JsonObjectCodecProvider{}, BsonCodecProvider{}, EnumCodecProvider{}, com.mongodb.client.model.mql.ExpressionCodecProvider@674658f7, com.mongodb.Jep395RecordCodecProvider@5c8eee0f]}, loggerSettings=LoggerSettings{maxDocumentLength=1000}, clusterSettings={hosts=[localhost:27017], srvServiceName=mongodb, mode=SINGLE, requiredClusterType=UNKNOWN, requiredReplicaSetName='null', serverSelector='null', clusterListeners='[]', serverSelectionTimeout='30000 ms', localThreshold='30000 ms'}, socketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=0, receiveBufferSize=0, sendBufferSize=0}, heartbeatSocketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=10000, receiveBufferSize=0, sendBufferSize=0}, connectionPoolSettings=ConnectionPoolSettings{maxSize=100, minSize=0, maxWaitTimeMS=120000, maxConnectionLifeTimeMS=0, maxConnectionIdleTimeMS=0, maintenanceInitialDelayMS=0, maintenanceFrequencyMS=60000, connectionPoolListeners=[], maxConnecting=2}, serverSettings=ServerSettings{heartbeatFrequencyMS=10000, minHeartbeatFrequencyMS=500, serverListeners='[]', serverMonitorListeners='[]'}, sslSettings=SslSettings{enabled=false, invalidHostNameAllowed=false, context=null}, applicationName='null', compressorList=[], uuidRepresentation=UNSPECIFIED, serverApi=null, autoEncryptionSettings=null, contextProvider=null}
+[cluster-ClusterId{value='641f87a7ffb3357c316aa817', description='null'}-localhost:27017] INFO org.mongodb.driver.cluster - Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=17, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=45120800}
+[main] INFO app.potato.bot.MongoDBConnection - Collection : TwitterPostRequests
+[main] INFO app.potato.bot.MongoDBConnection - id : class org.bson.types.ObjectId
+[main] INFO app.potato.bot.MongoDBConnection - postId : class java.lang.String
+[main] INFO app.potato.bot.MongoDBConnection - key : class java.lang.String
+[main] INFO app.potato.bot.MongoDBConnection - data : class org.bson.types.Binary
+[main] INFO app.potato.bot.MongoDBConnection - createdAt : class java.util.Date
+[main] INFO app.potato.bot.MongoDBConnection - Collection : PixivPostRequests
+[main] INFO app.potato.bot.MongoDBConnection - id : class org.bson.types.ObjectId
+[main] INFO app.potato.bot.MongoDBConnection - postId : class java.lang.String
+[main] INFO app.potato.bot.MongoDBConnection - key : class java.lang.String
+[main] INFO app.potato.bot.MongoDBConnection - data : class org.bson.types.Binary
+[main] INFO app.potato.bot.MongoDBConnection - createdAt : class java.util.Date
+[main] INFO app.potato.bot.Bot - Bot is a member of guild: 1073772081679978546
+[main] INFO org.reflections.Reflections - Reflections took 13 ms to scan 1 urls, producing 5 keys and 11 values
+[main] INFO app.potato.bot.services.SlashCommandsService - Creating Slash Command debug ? Commands for debugging
+[main] INFO app.potato.bot.services.SlashCommandsService - Creating Slash Command ping ? Pings back
+[main] INFO app.potato.bot.services.SlashCommandsService - Creating Slash Command clear ? Clears messages
+[main] INFO app.potato.bot.services.SlashCommandsService - Creating Slash Command ban ? Bans a user
+[main] INFO app.potato.bot.services.SlashCommandsService - Set Guild Slash Commands for BotTestServer: 4
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.MessageReceivedListener - Message received
+[Thread-6] INFO app.potato.bot.listeners.handlers.PixivPostLinkMessageHandler - Handled by PixivPostLinkMessageHandler
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.MessageReceivedListener - Message received
+[Thread-7] INFO app.potato.bot.listeners.handlers.PixivPostLinkMessageHandler - Handled by PixivPostLinkMessageHandler
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.MessageReceivedListener - Message received
+[Thread-8] INFO app.potato.bot.listeners.handlers.PixivPostLinkMessageHandler - Handled by PixivPostLinkMessageHandler
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.MessageReceivedListener - Message received
+[JDA MainWS-ReadThread] INFO app.potato.bot.listeners.MessageReceivedListener - Message received
+[Thread-9] INFO app.potato.bot.listeners.handlers.PixivPostLinkMessageHandler - Handled by PixivPostLinkMessageHandler
+
+> Task :Bot.main() FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':Bot.main()'.
+> Build cancelled while executing task ':Bot.main()'
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 8.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+See https://docs.gradle.org/7.5.1/userguide/command_line_interface.html#sec:command_line_warnings
+
+BUILD FAILED in 38m 32s
+3 actionable tasks: 2 executed, 1 up-to-date

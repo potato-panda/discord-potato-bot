@@ -22,25 +22,30 @@ export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
 
   async onMessage(
     msg: Msg,
-    data: { postId: string; quality: 'original' | 'regular' },
+    data: { postId: string; quality: 'ORIGINAL' | 'REGULAR' },
   ): Promise<void> {
     const sc = StringCodec();
     const { postId, quality } = data;
     try {
-      const { pages, post } = await this.service.scrapeImagePost(postId);
+      const { pagesMetadata, gifMetadata, metadata } =
+        await this.service.scrapePost(postId);
+
+      const pagesDownloadResponse = async () =>
+        await this.service
+          .downloadByBody(postId, pagesMetadata, quality);
+
+      const gifDownloadResponse = async () =>
+        await this.service
+          .downloadGif(postId, pagesMetadata[0], gifMetadata);
+
+      const downloadResponses =
+        metadata.illustType === 'gif'
+          ? await gifDownloadResponse()
+          : await pagesDownloadResponse();
 
       const reply: PixivPostRequestReply = {
-        metadata: post,
-        downloadResponses: await this.service.downloadFromLinks(
-          pages.map((page) => {
-            switch (quality) {
-              case 'original':
-                return page.urls.original;
-              default:
-                return page.urls.regular;
-            }
-          }),
-        ),
+        metadata,
+        downloadResponses,
       };
 
       log('Response: ', inspect(reply, false, null, true));

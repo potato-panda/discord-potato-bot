@@ -7,6 +7,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.text.ParseException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -29,6 +30,7 @@ public
                                                   IOException,
                                                   InterruptedException,
                                                   ExecutionException,
-                                                  TimeoutException;
+                                                  TimeoutException,
+                                                  ParseException;
     }
 }

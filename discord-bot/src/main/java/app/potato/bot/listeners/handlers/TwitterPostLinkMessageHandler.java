@@ -12,8 +12,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.sql.Date;
-import java.time.ZonedDateTime;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +24,7 @@ import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHa
 import static app.potato.bot.services.TwitterService.*;
 import static app.potato.bot.services.TwitterService.TwitterPostLinkRequestReply.TwitterPostMetadata;
 import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
-import static net.dv8tion.jda.api.utils.TimeUtil.getDiscordTimestamp;
+import static app.potato.bot.utils.TimestampUtil.getFormattedDiscordTimestamp;
 
 @MessageHandler
 public final
@@ -41,7 +41,7 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
     @Override
     public
     void handle( MessageReceivedEvent event )
-    throws IOException, ExecutionException, InterruptedException
+    throws IOException, ExecutionException, InterruptedException, ParseException
     {
         logger.info( "Handled by TwitterPostLinkMessageHandler" );
         // suppress initial embeds
@@ -77,6 +77,7 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                                                              = FileUpload.fromData( twitterModeratedFile.imageData(),
                                                                                                     twitterModeratedFile.metadata()
                                                                                                                         .getFileNameWithExtension() );
+
                                                                      if ( twitterModeratedFile.moderation()
                                                                                               .suggestive() || ( twitterModeratedFile.moderation()
                                                                                                                                      .contentModerationResponse()
@@ -109,9 +110,7 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                         .addField( "Likes",
                                                    String.valueOf( metadata.favourites() ),
                                                    true )
-                                        .setFooter( "on Bird app • " + getDiscordTimestamp( Date.from( ZonedDateTime.parse( metadata.createdAt() )
-                                                                                                                    .toInstant() )
-                                                                                                .getTime() ) );
+                                        .setFooter( "on Bird app • " + getFormattedDiscordTimestamp( getLongTimeInSeconds( metadata.createdAt() ) ) );
 
             MessageEmbed embed = embedBuilder.build();
 
@@ -121,6 +120,8 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                          .queue();
 
             for ( FileUpload fileUpload : filesToUploads ) {
+                logger.info( "file sent : {}",
+                             fileUpload.getName() );
                 targetMessage.reply( "" )
                              .mentionRepliedUser( false )
                              .addFiles( fileUpload )
@@ -150,5 +151,15 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                   twitterPostLinkRequests.addAll( twitterPostLinkRequests2 );
                                   return twitterPostLinkRequests;
                               } );
+    }
+
+    private
+    long getLongTimeInSeconds( String dateString ) throws ParseException
+    {
+        SimpleDateFormat dateFormat
+                = new SimpleDateFormat( "EEE MMM dd HH:mm:ss Z yyyy" );
+        java.util.Date date         = dateFormat.parse( dateString );
+        long           milliseconds = date.getTime();
+        return milliseconds / 1000;
     }
 }

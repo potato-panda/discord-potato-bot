@@ -1,7 +1,6 @@
 import { injectable } from 'inversify';
 import { BrowserContext, chromium, devices } from 'playwright';
 import { BrowserStorageStateService } from '../BrowserStorageStateService';
-import { DownloadStrategy } from './strategies/DownloadStrategy';
 
 @injectable()
 export abstract class ImageScraper {
@@ -9,7 +8,6 @@ export abstract class ImageScraper {
   // protected eventListener: EventEmitter;
   constructor(
     public name: string,
-    public downloader: DownloadStrategy,
     protected storageStateService: BrowserStorageStateService,
   ) {
     // this.eventListener = new EventEmitter();

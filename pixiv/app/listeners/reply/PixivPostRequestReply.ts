@@ -1,4 +1,4 @@
-import { FileDownloadsResponse } from '../../services/responses/FileDownloadResponse';
+import { FileDownloadResponse } from '../../services/DownloadService';
 
 export type PixivPostMetadata = {
   adult: boolean;
@@ -8,12 +8,19 @@ export type PixivPostMetadata = {
   description: string;
   userName: string;
   userAccount: string;
+  isAi: boolean;
   likes: number;
-  hearts: number;
+  favourites: number;
   createdAt: string;
+  illustType: 'gif' | 'jpg';
 };
 
+export type ReplyFileDownloadResponse = Omit<
+  FileDownloadResponse & { key: string },
+  'data'
+>;
+
 export interface PixivPostRequestReply {
-  downloadResponses: FileDownloadsResponse[];
+  downloadResponses: ReplyFileDownloadResponse[];
   metadata: PixivPostMetadata;
 }
