@@ -1,0 +1,59 @@
+services:
+  bot:
+    container_name: discord-bot
+    build:
+      context: ./discord-bot
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./discord-bot/.env
+      - ./.env
+    depends_on:
+      - "${REDIS_NAME:-redis}"
+      - "${NATS_NAME:-nats}"
+      - "${MONGO_NAME:-mongo}"
+  twitter-node:
+    container_name: twitter-node
+    build:
+      context: ./twitter
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./twitter/.env
+      - ./.env
+    depends_on:
+      - "${REDIS_NAME:-redis}"
+      - "${NATS_NAME:-nats}"
+      - "${MONGO_NAME:-mongo}"
+  pixiv-node:
+    container_name: pixiv-node
+    build:
+      context: ./pixiv
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./pixiv/.env
+      - ./.env
+    depends_on:
+      - "${REDIS_NAME:-redis}"
+      - "${NATS_NAME:-nats}"
+      - "${MONGO_NAME:-mongo}"
+  redis:
+    image: redis
+    container_name: "${REDIS_NAME:-redis}"
+    ports:
+      - 6379:6379
+    command: "--requirepass ${REDIS_PASS}"
+  nats:
+    image: nats
+    container_name: "${NATS_NAME:-nats}"
+    ports:
+      - 4222:4222
+      - 6222:6222
+      - 8222:8222
+    command: "--user ${NATS_USER} --pass ${NATS_PASS}"
+  mongo:
+    image: mongo
+    container_name: "${MONGO_NAME:-mongo}"
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD

@@ -9,8 +9,8 @@ export const nats = (async () => {
   // Log when connection is closed
   nc.closed().then((err) => {
     let msg = 'Connection to Nats closed';
-    if (err) {
-      msg = `${msg} with error ${err!.message}`;
+    if (err != null) {
+      msg = `${msg} with error ${err.message}`;
     }
     log(msg);
   });

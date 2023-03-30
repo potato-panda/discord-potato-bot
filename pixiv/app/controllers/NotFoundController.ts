@@ -1,8 +1,5 @@
 import { Response } from 'express';
-import {
-  controller,
-  httpMethod, response
-} from 'inversify-express-utils';
+import { controller, httpMethod, response } from 'inversify-express-utils';
 
 @controller('*')
 export class NotFoundController {

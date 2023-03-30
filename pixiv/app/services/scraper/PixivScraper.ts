@@ -431,7 +431,7 @@ export class PixivScraper extends ImageScraper {
 
   private async getContextCookie() {
     const state = await this.browserContext.storageState();
-    let cookie = state?.cookies?.find((c) => c.name === 'PHPSESSID');
+    const cookie = state?.cookies?.find((c) => c.name === 'PHPSESSID');
     if (!cookie) {
       console.log('Error bad cookie');
       return [];

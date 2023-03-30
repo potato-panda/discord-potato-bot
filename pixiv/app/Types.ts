@@ -14,5 +14,3 @@ export const TYPES = {
   PixivScraper: Symbol.for('PixivScraper'),
   Username: Symbol.for('Username'),
 };
-
-

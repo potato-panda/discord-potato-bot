@@ -31,12 +31,10 @@ export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
         await this.service.scrapePost(postId);
 
       const pagesDownloadResponse = async () =>
-        await this.service
-          .downloadByBody(postId, pagesMetadata, quality);
+        await this.service.downloadByBody(postId, pagesMetadata, quality);
 
       const gifDownloadResponse = async () =>
-        await this.service
-          .downloadGif(postId, pagesMetadata[0], gifMetadata);
+        await this.service.downloadGif(postId, pagesMetadata[0], gifMetadata);
 
       const downloadResponses =
         metadata.illustType === 'gif'

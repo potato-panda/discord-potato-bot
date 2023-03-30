@@ -42,7 +42,7 @@ export class DownloadService {
                 chunks.push(chunk);
               })
               .on('end', async () => {
-                let data = Buffer.concat(chunks);
+                const data = Buffer.concat(chunks);
 
                 log('Finished Downloading: ', fileDownloadMetadata);
                 resolve({

@@ -1,6 +1,4 @@
-export interface PixivPostPagesResponse<
-  T extends Body_Gif | Body_Image[],
-> {
+export interface PixivPostPagesResponse<T extends Body_Gif | Body_Image[],> {
   error: boolean;
   message: string;
   body: T;

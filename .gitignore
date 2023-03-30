@@ -6,3 +6,4 @@ node_modules
 tasks.xml
 workspace.xml
 .env
+*log.txt

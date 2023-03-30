@@ -16,7 +16,7 @@ export abstract class ImageScraper {
   public async initThen(postInitFn?: () => Promise<void>) {
     const browserCtx = (
       await chromium.launch({
-        headless: !!process.env.DEBUG && !!process.env.HEADLESS,
+        headless: !process.env.DEBUG || !!process.env.HEADLESS,
       })
     ).newContext({
       ...devices['Desktop Chrome'],
@@ -43,5 +43,4 @@ export abstract class ImageScraper {
     uri: string,
     processResponse: (response: R) => D,
   ): Promise<D>;
-
 }

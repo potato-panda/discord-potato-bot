@@ -2,7 +2,7 @@ import cluster from 'cluster';
 import { log } from 'console';
 
 import * as dotenv from 'dotenv';
-dotenv.config({ path: `${__dirname}//.env` });
+dotenv.config({ path: `${__dirname}//..//.env` });
 
 import 'reflect-metadata';
 
@@ -10,7 +10,7 @@ import './constants.config';
 
 import { InversifyExpressServer } from 'inversify-express-utils';
 import './Redis';
-import './Mongoose'
+import './Mongoose';
 
 import './controllers';
 import { App } from './App';
@@ -25,11 +25,11 @@ import { nats } from './Nats';
     .listen(await nats);
 
   if (!process.env.DEBUG) {
-    let server = new InversifyExpressServer(container);
+    const server = new InversifyExpressServer(container);
     server.setConfig((app) => {
       new App(app);
     });
-    let app = server.build();
+    const app = server.build();
 
     app.listen(appPort, () => {
       log(

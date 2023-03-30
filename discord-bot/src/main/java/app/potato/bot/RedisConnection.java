@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisPooled;
 
-import java.io.IOException;
+import java.util.Optional;
 
 public
 class RedisConnection {
@@ -16,11 +16,21 @@ class RedisConnection {
     RedisConnection() {}
 
     public static
-    JedisPooled instance() throws IOException, InterruptedException
+    JedisPooled instance()
     {
         if ( _connection == null ) {
-            _connection = new JedisPooled();
-            logger.info( "Redis Connected" );
+            try {
+                Optional<String> redisName
+                        = Optional.ofNullable( System.getenv( "REDIS_NAME" ) );
+                _connection = redisName.map( s -> new JedisPooled( s,
+                                                                   6379 ) )
+                                       .orElseGet( JedisPooled::new );
+                logger.info( "Redis Connected" );
+            }
+            catch ( Exception e ) {
+                logger.error( "Redis connection error : {}",
+                              e.getMessage() );
+            }
         }
         return _connection;
     }

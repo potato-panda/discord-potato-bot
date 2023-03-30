@@ -7,6 +7,8 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 import static app.potato.bot.services.SlashCommandsService.setGlobalSlashCommands;
 import static app.potato.bot.services.SlashCommandsService.setGuildSlashCommands;
 import static app.potato.bot.utils.ListenerUtil.getListenersAsArray;
@@ -18,23 +20,25 @@ class Bot {
 
     public static
     void main( String[] args ) throws Exception {
-        String env = System.getenv( "ENV" );
-        if ( !env.equals( "PROD" ) ) {
-            env = "DEV";
+        Optional<String> env = Optional.ofNullable( System.getenv( "ENV" ) );
+        if ( env.isEmpty() || !env.get().equals( "PROD" ) ) {
+            env = Optional.of( "DEV" );
         }
-        String botToken = System.getenv( "BOT_TOKEN" );
+        Optional<String> botToken
+                = Optional.ofNullable( System.getenv( "BOT_TOKEN" ) );
         if ( botToken.isEmpty() ) {
             throw new Exception( "BOT_TOKEN env var must be provided" );
         }
 
-        JDABuilder builder = JDABuilder.createDefault( botToken );
+        JDABuilder builder = JDABuilder.createDefault( botToken.get() );
 
         builder.enableIntents( GatewayIntent.MESSAGE_CONTENT,
                                GatewayIntent.GUILD_MESSAGES );
 
         JDA jda = builder.build();
 
-        String guildId = System.getenv( "GUILD_ID" );
+        Optional<String> guildId
+                = Optional.ofNullable( System.getenv( "GUILD_ID" ) );
 
         jda.addEventListener( getListenersAsArray() );
 
@@ -48,21 +52,21 @@ class Bot {
 
 
         // Register Guild Commands when in Dev Mode
-        if ( env.equals( "DEV" ) ) {
+        if ( env.get().equals( "DEV" ) ) {
             try {
-                Guild guild = jda.getGuildById( guildId );
+                if ( guildId.isPresent() ) {
+                    Guild guild = jda.getGuildById( guildId.get() );
 
-                if ( guild != null ) {
-                    logger.info( "Bot is a member of guild: {}",
-                                 guildId );
+                    if ( guild != null ) {
+                        logger.info( "Bot is a member of guild: {}",
+                                     guildId );
 
-                    setGuildSlashCommands( guild );
+                        setGuildSlashCommands( guild );
 
-                } else {
-                    logger.info(
-                            "Bot is not a member of guild: {}",
-                            guildId
-                    );
+                    } else {
+                        logger.info( "Bot is not a member of guild: {}",
+                                     guildId );
+                    }
                 }
             }
             catch ( Exception e ) {
