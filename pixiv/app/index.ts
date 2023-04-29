@@ -1,42 +1,14 @@
-import cluster from 'cluster';
-import { log } from 'console';
-
-import * as dotenv from 'dotenv';
-dotenv.config({ path: `${__dirname}//..//.env` });
-
 import 'reflect-metadata';
 
-import './constants.config';
+import { container as resolvedContainer } from './inversity.config';
 
-import { InversifyExpressServer } from 'inversify-express-utils';
-import './Redis';
 import './Mongoose';
+import nats from './Nats';
+import { PixivPostRequestListener } from './events';
 
-import './controllers';
-import { App } from './App';
-import { appPort } from './constants.config';
-import { container } from './inversity.config';
-import { PixivPostRequestListener } from './listeners';
-import { nats } from './Nats';
-
-(async () => {
+(async function () {
+  const container = await resolvedContainer;
   container
     .resolve<PixivPostRequestListener>(PixivPostRequestListener)
     .listen(await nats);
-
-  if (!process.env.DEBUG) {
-    const server = new InversifyExpressServer(container);
-    server.setConfig((app) => {
-      new App(app);
-    });
-    const app = server.build();
-
-    app.listen(appPort, () => {
-      log(
-        `Worker ${cluster?.worker?.id} (PID:${process.pid}) listening on port ${appPort}`,
-      );
-    });
-  } else {
-    log(`Worker ${cluster?.worker?.id || 'null'} (PID:${process.pid}) started`);
-  }
 })();

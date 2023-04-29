@@ -171,7 +171,6 @@ class PixivService {
                 String userName,
                 String userAccount,
                 boolean isAi,
-                int likes,
                 int favourites,
                 String createdAt,
                 IllustrationType illustType
@@ -179,7 +178,7 @@ class PixivService {
         {
             public
             enum IllustrationType {
-                gif( "gif" ), jpg( "jpg" );
+                illust( "illust" ), ugoira( "ugoira" ), manga( "manga" );
 
                 private final String value;
 

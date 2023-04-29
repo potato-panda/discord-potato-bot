@@ -12,8 +12,10 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,7 +26,6 @@ import static app.potato.bot.listeners.handlers.PixivPostLinkRequest.ImageReques
 import static app.potato.bot.services.PixivService.*;
 import static app.potato.bot.services.PixivService.PixivPostLinkRequestReply.PixivPostMetadata;
 import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
-import static app.potato.bot.utils.TimestampUtil.getFormattedDiscordTimestamp;
 
 @MessageHandler
 public final
@@ -114,15 +115,12 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
 //                                                                metadata.tags()
 //                                                                        .toArray( value -> new String[]{} ) ),
 //                                                   false )
-                                        .addField( "Likes",
-                                                   String.valueOf( metadata.likes() ),
-                                                   true )
                                         .addField( "Favourites",
                                                    String.valueOf( metadata.favourites() ),
                                                    true )
-                                        .setFooter( "on Bird app • " + getFormattedDiscordTimestamp( Date.from( ZonedDateTime.parse( metadata.createdAt() )
-                                                                                                                             .toInstant() )
-                                                                                                         .getTime() ) );
+                                        .setFooter( "Pixiv" )
+                                        .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
+                                                                    .toInstant() );
 
 
             MessageEmbed embed = embedBuilder.build();

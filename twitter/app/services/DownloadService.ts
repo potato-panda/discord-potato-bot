@@ -1,11 +1,11 @@
-import { error, log } from 'console';
-import { ClientRequest } from 'http';
+import { error, log } from 'node:console';
+import { ClientRequest } from 'node:http';
 import { injectable } from 'inversify';
 
 @injectable()
 export class DownloadService {
-  async download(request: ClientRequest): Promise<FileDownloadResponse> {
-    const downloadPromise = new Promise<FileDownloadResponse>(
+  async download(request: ClientRequest): Promise<FileDownload.Response> {
+    const downloadPromise = new Promise<FileDownload.Response>(
       (resolve, reject) => {
         request
           .on('response', (response) => {
@@ -29,7 +29,7 @@ export class DownloadService {
 
             const [fileName, fileExtension] = fileNameWithExtension.split('.');
 
-            const fileDownloadMetadata: FileDownloadMetadata = {
+            const fileDownloadMetadata: FileDownload.Metadata = {
               mimeType: contentType,
               size: contentSize,
               fileName: fileName,
@@ -75,16 +75,18 @@ export class DownloadService {
   }
 }
 
-export interface FileDownloadMetadata {
-  mimeType: string;
-  size: number;
-  fileName: string;
-  fileExtension: string;
-}
+export namespace FileDownload {
+  export interface Metadata {
+    mimeType: string;
+    size: number;
+    fileName: string;
+    fileExtension: string;
+  }
 
-export interface FileDownloadResponse {
-  metadata: FileDownloadMetadata;
-  data: Buffer;
-  success: boolean;
-  message: string;
+  export interface Response {
+    metadata: Metadata;
+    data: Buffer;
+    success: boolean;
+    message: string;
+  }
 }

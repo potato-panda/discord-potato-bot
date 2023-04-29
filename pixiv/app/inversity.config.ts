@@ -1,48 +1,44 @@
 import { Container } from 'inversify';
-import { env } from 'process';
-import { PixivPostRequestListener } from './listeners';
-import { BrowserStorageStateService } from './services/BrowserStorageStateService';
-import { DownloadService } from './services/DownloadService';
-import { PixivScraper } from './services/scraper/PixivScraper';
-import { TYPES } from './Types';
+import { env } from 'node:process';
+import { PixivApiClient } from 'pixiv-api-wrapper';
+import puppeteer from 'puppeteer-core';
+import { PixivPostRequestListener } from './events/PixivPostRequestListener';
+import { PixivService } from './services/PixivService';
 
-const container = new Container();
+const container = (async () => {
+  const container = new Container();
 
-container
-  .bind<BrowserStorageStateService>(TYPES.BrowserStorageStateService)
-  .to(BrowserStorageStateService);
-container
-  .bind<PixivScraper>(TYPES.PixivScraper)
-  .to(PixivScraper)
-  .inSingletonScope();
+  container
+    .bind<PixivPostRequestListener>(PixivPostRequestListener)
+    .to(PixivPostRequestListener)
+    .inSingletonScope();
 
-container.bind<DownloadService>(TYPES.DownloadService).to(DownloadService);
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: [
+      '--disable-gpu',
+      '--disable-setuid-sandbox',
+      '--no-sandbox',
+      '--no-zygote'],
+    executablePath: puppeteer.executablePath('chrome'),
+  });
 
-container
-  .bind<string>(TYPES.Username)
-  .toConstantValue(env?.PIXIV_ID ?? '')
-  .whenTargetNamed('pixiv');
-container
-  .bind<string>(TYPES.Password)
-  .toConstantValue(env?.PIXIV_PW ?? '')
-  .whenTargetNamed('pixiv');
-container
-  .bind<string>(TYPES.Name)
-  .toConstantValue('pixiv')
-  .whenTargetNamed('pixiv');
+  const client = await PixivApiClient.create(
+    {
+      userId: env.PIXIV_ID || '',
+      password: env.PIXIV_PW || '',
+    },
+    browser,
+  );
 
-container
-  .bind<string>(TYPES.Domain)
-  .toConstantValue('pixiv.net')
-  .whenParentNamed('pixiv');
-container
-  .bind<PixivScraper>(TYPES.ImageScraper)
-  .to(PixivScraper)
-  .inSingletonScope();
+  container.bind<PixivApiClient>(PixivApiClient).toConstantValue(client);
 
-container
-  .bind<PixivPostRequestListener>(TYPES.PixivPostRequestListener)
-  .to(PixivPostRequestListener)
-  .inSingletonScope();
+  container
+    .bind<PixivService>(PixivService)
+    .to(PixivService)
+    .inSingletonScope();
+
+  return container;
+})();
 
 export { container };

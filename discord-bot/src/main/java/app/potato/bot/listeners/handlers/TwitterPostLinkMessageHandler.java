@@ -14,6 +14,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +25,6 @@ import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHa
 import static app.potato.bot.services.TwitterService.*;
 import static app.potato.bot.services.TwitterService.TwitterPostLinkRequestReply.TwitterPostMetadata;
 import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
-import static app.potato.bot.utils.TimestampUtil.getFormattedDiscordTimestamp;
 
 @MessageHandler
 public final
@@ -110,7 +110,9 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                         .addField( "Likes",
                                                    String.valueOf( metadata.favourites() ),
                                                    true )
-                                        .setFooter( "on Bird app • " + getFormattedDiscordTimestamp( getLongTimeInSeconds( metadata.createdAt() ) ) );
+                                        .setFooter( "Bird App" )
+                                        .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
+                                                                    .toInstant() );
 
             MessageEmbed embed = embedBuilder.build();
 

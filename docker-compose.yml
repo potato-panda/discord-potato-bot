@@ -11,8 +11,8 @@ services:
       - "${REDIS_NAME:-redis}"
       - "${NATS_NAME:-nats}"
       - "${MONGO_NAME:-mongo}"
-  twitter-node:
-    container_name: twitter-node
+  twitter-service:
+    container_name: twitter-service
     build:
       context: ./twitter
       dockerfile: ./Dockerfile
@@ -20,11 +20,10 @@ services:
       - ./twitter/.env
       - ./.env
     depends_on:
-      - "${REDIS_NAME:-redis}"
       - "${NATS_NAME:-nats}"
       - "${MONGO_NAME:-mongo}"
-  pixiv-node:
-    container_name: pixiv-node
+  pixiv-service:
+    container_name: pixiv-service
     build:
       context: ./pixiv
       dockerfile: ./Dockerfile
@@ -32,7 +31,6 @@ services:
       - ./pixiv/.env
       - ./.env
     depends_on:
-      - "${REDIS_NAME:-redis}"
       - "${NATS_NAME:-nats}"
       - "${MONGO_NAME:-mongo}"
   redis:

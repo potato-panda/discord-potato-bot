@@ -1,19 +1,21 @@
-import { TYPES } from '../Types';
-import { PixivScraper } from '../services/scraper/PixivScraper';
-import { Listener } from './Listener';
-import { PixivImageRequestEvent } from './PixivImageRequestEvent';
-import { error } from 'console';
 import { inject, injectable, named } from 'inversify';
 import { Msg, StringCodec } from 'nats';
-import { safelyStringify } from '../utils/String';
+import { PixivService } from '../services/PixivService';
+import { BaseListener, BaseListenerEvent } from './Listener';
+import ListenerSubjects from './ListenerSubjects';
+
+interface PixivImageRequestEvent extends BaseListenerEvent {
+  data: {
+    url: string;
+  };
+}
 
 @injectable()
-export class PixivImageRequestListener extends Listener<PixivImageRequestEvent> {
-  subject = 'pixiv.image.request';
-  queueName = 'pixiv-image-service-queue';
+export class PixivImageRequestListener extends BaseListener<PixivImageRequestEvent> {
+  subject = ListenerSubjects.PixivImageRequest;
   constructor(
-    @inject(TYPES.PixivScraper) @named('pixiv')
-    private service: PixivScraper,
+    @inject(PixivService) @named('pixiv')
+    private service: PixivService,
   ) {
     super();
   }

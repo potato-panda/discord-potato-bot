@@ -1,13 +1,13 @@
 import { Schema, model } from 'mongoose';
 
-export interface TwitterPostRequest {
+export interface PixivPostRequestReply {
   postId: string;
   key: string;
   data: Buffer;
   createdAt: Date;
 }
 
-const TwitterPostRequestSchema = new Schema<TwitterPostRequest>({
+const PixivPostRequestSchema = new Schema<PixivPostRequestReply>({
   postId: {
     type: String,
     required: true,
@@ -25,8 +25,8 @@ const TwitterPostRequestSchema = new Schema<TwitterPostRequest>({
   },
 }).index({ postId: 1, key: 1 }, { unique: true });
 
-export const TwitterPostRequestModel = model<TwitterPostRequest>(
-  'TwitterPostRequest',
-  TwitterPostRequestSchema,
-  'TwitterPostRequests',
+export const PixivPostRequestReplyModel = model<PixivPostRequestReply>(
+  'PixivPostRequest',
+  PixivPostRequestSchema,
+  'PixivPostRequests',
 );

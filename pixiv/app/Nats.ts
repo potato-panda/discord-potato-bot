@@ -1,12 +1,18 @@
-import { natsServers } from './constants.config';
-import { log } from 'console';
+import { log } from 'node:console';
 import { connect } from 'nats';
 
-export const nats = (async () => {
-  const nc = await connect(natsServers);
+export default (async () => {
+  const nats = connect({
+    servers: `${process.env.NATS_NAME || 'localhost'}:4222`,
+    user: process.env.NATS_USER,
+    pass: process.env.NATS_PASS,
+  });
+  nats.catch(
+    (err) => new Error(`Nats connection error: ${err?.message || err}`),
+  );
+  const nc = await nats;
   log('Connected to Nats');
 
-  // Log when connection is closed
   nc.closed().then((err) => {
     let msg = 'Connection to Nats closed';
     if (err != null) {

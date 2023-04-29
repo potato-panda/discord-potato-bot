@@ -1,5 +1,5 @@
 #!/bin/sh
 
-docker build -t pixiv-build .
+docker build -t pixiv-service .
 
-docker run -d --name pixiv-node --env-file ./.env --env-file ../.env pixiv-build
+docker run --name pixiv-service --env-file ../.env --env-file ./.env pixiv-service

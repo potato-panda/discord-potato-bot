@@ -1,6 +1,5 @@
 package app.potato.bot;
 
-import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
@@ -35,8 +34,6 @@ class MongoDBConnection {
                         = Optional.ofNullable( System.getenv( "MONGO_INITDB_ROOT_USERNAME" ) );
                 Optional<String> mongoPass
                         = Optional.ofNullable( System.getenv( "MONGO_INITDB_ROOT_PASSWORD" ) );
-                MongoClientOptions.Builder options
-                        = MongoClientOptions.builder();
                 MongoClientSettings.Builder settingsBuilder
                         = MongoClientSettings.builder();
                 MongoClient mongoClient;
@@ -53,7 +50,7 @@ class MongoDBConnection {
                 if ( mongoUser.isPresent() && mongoPass.isPresent() ) {
                     MongoCredential credentials
                             = MongoCredential.createCredential( mongoUser.get(),
-                                                                "bot-app",
+                                                                "admin",
                                                                 mongoPass.get()
                                                                          .toCharArray() );
                     settingsBuilder.credential( credentials );

@@ -1,31 +1,27 @@
 import { Container } from 'inversify';
-import { env } from 'process';
-import { TwitterPostRequestListener } from './listeners/TwitterPostRequestListener';
-import { TwitterService } from './services/TwitterService';
+import { TwitterPostRequestListener } from './events/TwitterPostRequestListener';
 import { DownloadService } from './services/DownloadService';
-import { TYPES } from './Types';
+import { TwitterService } from './services/TwitterService';
 
-const container = new Container();
+const container = (async () => {
+  const container = new Container();
 
-container
-  .bind<TwitterPostRequestListener>(TYPES.TwitterPostRequestListener)
-  .to(TwitterPostRequestListener)
-  .inSingletonScope();
+  container
+    .bind<TwitterPostRequestListener>(TwitterPostRequestListener)
+    .to(TwitterPostRequestListener)
+    .inSingletonScope();
 
-container
-  .bind<TwitterService>(TYPES.TwitterService)
-  .to(TwitterService)
-  .inRequestScope();
-container
-  .bind<DownloadService>(TYPES.DownloadService)
-  .to(DownloadService)
-  .inRequestScope();
+  container
+    .bind<TwitterService>(TwitterService)
+    .to(TwitterService)
+    .inSingletonScope();
 
-container
-  .bind<string>(TYPES.TwitterApiKey)
-  .toConstantValue(env.TWITTER_API_KEY ?? '');
-container
-  .bind<string>(TYPES.TwitterApiSecret)
-  .toConstantValue(env.TWITTER_API_SECRET ?? '');
+  container
+    .bind<DownloadService>(DownloadService)
+    .to(DownloadService)
+    .inRequestScope();
+
+  return container;
+})();
 
 export { container };
