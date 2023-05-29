@@ -1,8 +1,8 @@
 import { error, log } from 'node:console';
 import mongoose from 'mongoose';
 
-export async function connectMongo() {
-  return await mongoose
+async function connectMongo() {
+  const c = mongoose
     .connect(`mongodb://${process.env.MONGO_NAME || 'localhost'}:27017`, {
       dbName: 'bot-app',
       auth: {
@@ -10,12 +10,16 @@ export async function connectMongo() {
         password: process.env.MONGO_INITDB_ROOT_PASSWORD,
       },
     })
-    .then(() => {
-      log('Connected to Mongo');
-    })
-    .catch((err) => {
-      error(`Mongo connection error : ${err?.message || err}`);
-    });
+  c.then(() => {
+    log('Connected to Mongo');
+  })
+  c.catch((err) => {
+    error(`Mongo connection error : ${err?.message || err}`);
+  });
+  const conn = await c;
+  const { mongo } = (await c);
+  const bucket = new mongo.GridFSBucket(conn.connection.db, { chunkSizeBytes: 1048576, });
+  return bucket;
 }
 
-connectMongo();
+export const bucket = connectMongo();

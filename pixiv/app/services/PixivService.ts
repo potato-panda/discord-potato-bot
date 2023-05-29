@@ -3,6 +3,7 @@ import { Illust, PixivApiClient, Utils } from 'pixiv-api-wrapper';
 import { PixivPost } from '../events/PixivPostRequest';
 import { PixivPostRequestReplyModel } from '../models/PixivPostRequestReply';
 import os from 'node:os';
+import uploadStream from '../utils/uploadStream';
 
 @injectable()
 export class PixivService {
@@ -22,8 +23,8 @@ export class PixivService {
         caption: description,
         user: { name: userName, account: userAccount },
         illustAiType: aiType,
-        totalBookmarks: bookmarkCount,
-        createDate,
+        totalBookmarks: favourites,
+        createDate: createdAt,
         type: illustType,
       },
     } = illustMetadata;
@@ -38,8 +39,8 @@ export class PixivService {
         userName,
         userAccount,
         isAi: aiType === 2,
-        favourites: bookmarkCount,
-        createdAt: createDate,
+        favourites,
+        createdAt,
         illustType,
       } as PixivPost.Metadata,
       illustMetadata
@@ -58,7 +59,10 @@ export class PixivService {
       if (illust.status === 'fulfilled') {
         const { metadata, data } = illust.value;
 
-        const key = metadata.fileName;
+        const upload = await uploadStream(metadata, data);
+
+        const key = upload.id.toJSON();
+
         result.push({
           metadata,
           key,
@@ -68,16 +72,15 @@ export class PixivService {
 
         // Find stored reply else create new reply
         const entry =
-          (
-            await PixivPostRequestReplyModel.findOne({
-              postId: illustMetadata.id,
-              key,
-            })?.exec()
-          )?.$set('data', data) ??
+
+          await PixivPostRequestReplyModel.findOne({
+            postId: illustMetadata.id,
+            key,
+          })?.exec()
+          ??
           new PixivPostRequestReplyModel({
             postId: illustMetadata.id,
             key,
-            data,
           });
 
         await entry.save();

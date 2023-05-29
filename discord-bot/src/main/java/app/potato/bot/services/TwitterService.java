@@ -7,8 +7,12 @@ import app.potato.bot.models.TwitterPostRequest;
 import app.potato.bot.utils.ChannelUtil;
 import app.potato.bot.utils.NatsUtil;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.gridfs.GridFSBucket;
+import com.mongodb.client.gridfs.GridFSDownloadStream;
+import com.mongodb.client.gridfs.model.GridFSFile;
 import io.nats.client.Connection;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,28 +92,49 @@ class TwitterService {
 
                                                             if ( twitterPostRequest != null ) {
 
-                                                                byte[]
-                                                                        imageBytes
-                                                                        = twitterPostRequest.getData()
-                                                                                            .getData();
+                                                                GridFSBucket
+                                                                        bucket
+                                                                        = MongoDBConnection.bucket();
 
 
-                                                                TwitterModerationData
-                                                                        moderationData
-                                                                        = new TwitterModerationData( twitterPostMetadata.suggestive(),
-                                                                                                     !twitterPostMetadata.suggestive() && !nsfwChannel
-                                                                                                     ? requestImageContentModeration( event,
-                                                                                                                                      fileDownloadMetadata.mimeType(),
-                                                                                                                                      imageBytes )
-                                                                                                     : Optional.empty() );
+                                                                GridFSFile entry
+                                                                        = bucket.find( eq( "_id",
+                                                                                           new ObjectId( twitterPostRequest.getKey() ) ) )
+                                                                                .first();
 
-                                                                TwitterModeratedFile
-                                                                        result
-                                                                        = new TwitterModeratedFile( fileDownloadMetadata,
-                                                                                                    imageBytes,
-                                                                                                    moderationData );
+                                                                if ( entry != null ) {
 
-                                                                twitterServiceResults.add( result );
+                                                                    String
+                                                                            filename
+                                                                            = entry.getFilename();
+
+                                                                    GridFSDownloadStream
+                                                                            downloadStream
+                                                                            = bucket.openDownloadStream( filename );
+
+                                                                    byte[]
+                                                                            imageBytes
+                                                                            = downloadStream.readAllBytes();
+                                                                    downloadStream.close();
+
+
+                                                                    TwitterModerationData
+                                                                            moderationData
+                                                                            = new TwitterModerationData( twitterPostMetadata.suggestive(),
+                                                                                                         !twitterPostMetadata.suggestive() && !nsfwChannel
+                                                                                                         ? requestImageContentModeration( event,
+                                                                                                                                          fileDownloadMetadata.mimeType(),
+                                                                                                                                          imageBytes )
+                                                                                                         : Optional.empty() );
+
+                                                                    TwitterModeratedFile
+                                                                            result
+                                                                            = new TwitterModeratedFile( fileDownloadMetadata,
+                                                                                                        imageBytes,
+                                                                                                        moderationData );
+
+                                                                    twitterServiceResults.add( result );
+                                                                }
                                                             }
 
                                                         }

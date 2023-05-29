@@ -14,7 +14,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -70,31 +69,34 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
             ArrayList<TwitterModeratedFile> moderatedFiles
                     = twitterServiceResult.moderatedFiles();
 
-            ArrayList<FileUpload> filesToUploads = moderatedFiles.stream()
-                                                                 .map( twitterModeratedFile -> {
-                                                                     FileUpload
-                                                                             fileUpload
-                                                                             = FileUpload.fromData( twitterModeratedFile.imageData(),
-                                                                                                    twitterModeratedFile.metadata()
-                                                                                                                        .getFileNameWithExtension() );
+            ArrayList<FileUpload> filesToUpload = moderatedFiles.stream()
+                                                                .map( twitterModeratedFile -> {
+                                                                    FileUpload
+                                                                            fileUpload
+                                                                            = FileUpload.fromData( twitterModeratedFile.imageData(),
+                                                                                                   twitterModeratedFile.metadata()
+                                                                                                                       .getFileNameWithExtension() );
 
-                                                                     if ( twitterModeratedFile.moderation()
-                                                                                              .suggestive() || ( twitterModeratedFile.moderation()
-                                                                                                                                     .contentModerationResponse()
-                                                                                                                                     .isPresent() && twitterModeratedFile.moderation()
-                                                                                                                                                                         .contentModerationResponse()
-                                                                                                                                                                         .get()
-                                                                                                                                                                         .result()
-                                                                                                                                                                         .isPresent() && twitterModeratedFile.moderation()
-                                                                                                                                                                                                             .contentModerationResponse()
-                                                                                                                                                                                                             .get()
-                                                                                                                                                                                                             .result()
-                                                                                                                                                                                                             .get() ) )
-                                                                         return fileUpload.asSpoiler();
+                                                                    if ( twitterModeratedFile.moderation()
+                                                                                             .suggestive()
+                                                                            || ( twitterModeratedFile.moderation()
+                                                                                                     .contentModerationResponse()
+                                                                                                     .isPresent()
+                                                                            && twitterModeratedFile.moderation()
+                                                                                                   .contentModerationResponse()
+                                                                                                   .get()
+                                                                                                   .result()
+                                                                                                   .isPresent()
+                                                                            && twitterModeratedFile.moderation()
+                                                                                                   .contentModerationResponse()
+                                                                                                   .get()
+                                                                                                   .result()
+                                                                                                   .get() ) )
+                                                                        return fileUpload.asSpoiler();
 
-                                                                     return fileUpload;
-                                                                 } )
-                                                                 .collect( Collectors.toCollection( ArrayList::new ) );
+                                                                    return fileUpload;
+                                                                } )
+                                                                .collect( Collectors.toCollection( ArrayList::new ) );
 
             TwitterPostMetadata metadata = twitterServiceResult.metadata();
 
@@ -110,24 +112,40 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                         .addField( "Likes",
                                                    String.valueOf( metadata.favourites() ),
                                                    true )
-                                        .setFooter( "Bird App" )
-                                        .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
-                                                                    .toInstant() );
+                                        .setFooter( "Bird App" );
+            SimpleDateFormat simpleDateFormat
+                    = new SimpleDateFormat( "EEE MMM dd HH:mm:ss Z yyyy" );
+            embedBuilder.setTimestamp( simpleDateFormat.parse( metadata.createdAt() )
+                                                       .toInstant() );
 
             MessageEmbed embed = embedBuilder.build();
 
+            // Send embed
             targetMessage.reply( "" )
                          .mentionRepliedUser( false )
                          .addEmbeds( embed )
                          .queue();
 
-            for ( FileUpload fileUpload : filesToUploads ) {
-                logger.info( "file sent : {}",
-                             fileUpload.getName() );
-                targetMessage.reply( "" )
-                             .mentionRepliedUser( false )
-                             .addFiles( fileUpload )
-                             .queue();
+            int imageCount = filesToUpload.size();
+            int count      = 0;
+
+            // Send images
+            for ( FileUpload fileUpload : filesToUpload ) {
+                String imageString = String.format( "%s/%s",
+                                                    ++count,
+                                                    imageCount );
+                boolean exceedsSize = fileUpload.getData()
+                                                .readAllBytes()
+                        .length > 25_000_000;
+                if ( exceedsSize ) {
+                    targetMessage.reply( imageString.concat( " Max upload limit was exceeded" ) )
+                                 .mentionRepliedUser( false )
+                                 .queue();
+                } else
+                    targetMessage.reply( imageString )
+                                 .mentionRepliedUser( false )
+                                 .addFiles( fileUpload )
+                                 .queue();
             }
 
         }

@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -42,7 +41,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
     @Override
     public
     void handle( MessageReceivedEvent event )
-    throws IOException, ExecutionException, InterruptedException
+    throws IOException, InterruptedException
     {
         logger.info( "Handled by PixivPostLinkMessageHandler" );
         // suppress initial embeds
@@ -125,6 +124,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
 
             MessageEmbed embed = embedBuilder.build();
 
+            // Send embed
             targetMessage.reply( "" )
                          .mentionRepliedUser( false )
                          .addEmbeds( embed )
@@ -145,21 +145,54 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                 }
             }
 
+            int imageCount = filesToUpload.size();
+            int count      = 0;
+
+            // Send images
             if ( option.selectPages.size() > 0 ) {
-                for ( Integer page : pagesToSend ) {
-                    if ( filesToUpload.get( page ) != null ) {
-                        targetMessage.reply( "" )
-                                     .mentionRepliedUser( false )
-                                     .addFiles( filesToUpload.get( page ) )
-                                     .queue();
+                int selectCount = pagesToSend.size();
+                for ( Integer idx : pagesToSend ) {
+                    FileUpload page = filesToUpload.get( idx );
+                    if ( filesToUpload.get( idx ) != null ) {
+
+                        String imageString
+                                = String.format( "%s/%s (of %s)",
+                                                 ++count,
+                                                 selectCount,
+                                                 imageCount );
+                        boolean exceedsSize = page.getData()
+                                                  .toString()
+                                                  .length() > 25_000_000;
+
+                        if ( exceedsSize ) {
+                            targetMessage.reply( imageString.concat( " Max image size was exceeded" ) )
+                                         .mentionRepliedUser( false )
+                                         .queue();
+                        } else
+                            targetMessage.reply( imageString )
+                                         .mentionRepliedUser( false )
+                                         .addFiles( filesToUpload.get( idx ) )
+                                         .queue();
                     }
                 }
             } else {
-                for ( FileUpload uploadFile : filesToUpload ) {
-                    targetMessage.reply( "" )
-                                 .mentionRepliedUser( false )
-                                 .addFiles( uploadFile )
-                                 .queue();
+                for ( FileUpload fileUpload : filesToUpload ) {
+
+                    String imageString = String.format( "%s/%s",
+                                                        ++count,
+                                                        imageCount );
+                    boolean exceedsSize = fileUpload.getData()
+                                                    .readAllBytes()
+                            .length > 25_000_000;
+                    if ( exceedsSize ) {
+                        targetMessage.reply( imageString.concat( " Max upload limit was exceeded" ) )
+                                     .mentionRepliedUser( false )
+                                     .queue();
+                    } else
+                        targetMessage.reply( imageString )
+                                     .mentionRepliedUser( false )
+                                     .addFiles( fileUpload )
+                                     .queue();
                 }
             }
         }

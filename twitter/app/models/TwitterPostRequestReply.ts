@@ -3,7 +3,6 @@ import { Schema, model } from 'mongoose';
 export interface TwitterPostRequestReply {
   postId: string;
   key: string;
-  data: Buffer;
   createdAt: Date;
 }
 
@@ -16,7 +15,6 @@ const TwitterPostRequestSchema = new Schema<TwitterPostRequestReply>({
     type: String,
     required: true,
   },
-  data: Buffer,
   createdAt: {
     type: Date,
     required: true,

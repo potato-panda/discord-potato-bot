@@ -2,7 +2,6 @@ package app.potato.bot.models;
 
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
-import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 
 import java.util.Date;
@@ -13,7 +12,6 @@ class PixivPostRequest {
     @Id private ObjectId id;
     private     String   postId;
     private     String   key;
-    private     Binary   data;
     private     Date     createdAt;
 
     private
@@ -47,16 +45,6 @@ class PixivPostRequest {
     public
     void setKey( String key ) {
         this.key = key;
-    }
-
-    public
-    Binary getData() {
-        return data;
-    }
-
-    public
-    void setData( Binary data ) {
-        this.data = data;
     }
 
     public

@@ -9,6 +9,7 @@ import TwitterApiv1ReadOnly from 'twitter-api-v2/dist/esm/v1/client.v1.read';
 import { TwitterPost } from '../events/TwitterPostRequest';
 import { TwitterPostRequestReplyModel } from '../models/TwitterPostRequestReply';
 import createHttpRequest from '../utils/createHttpRequest';
+import uploadStream from '../utils/uploadStream';
 import { DownloadService, FileDownload } from './DownloadService';
 
 @injectable()
@@ -65,25 +66,24 @@ export class TwitterService {
         .then(async (response) => {
           let { data, metadata, success } = response;
 
-          const key = metadata.fileName;
-
           // Convert to gif because media format is mp4 and not a real gif
           if (type === 'animated_gif') {
             data = await convertToGifFormat(data, metadata);
           }
 
+          const upload = await uploadStream(metadata, data);
+
+          const key = upload.id.toJSON();
+
           // Find stored reply else create new reply
           const entry =
-            (
-              await TwitterPostRequestReplyModel.findOne({
-                postId: postId,
-                key,
-              }).exec()
-            )?.set('data', data) ??
+            await TwitterPostRequestReplyModel.findOne({
+              postId: postId,
+              key,
+            }).exec() ??
             new TwitterPostRequestReplyModel({
               postId,
               key,
-              data,
             });
 
           await entry.save();

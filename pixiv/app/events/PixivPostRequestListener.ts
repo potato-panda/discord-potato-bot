@@ -38,7 +38,7 @@ export class PixivPostRequestListener extends BaseListener<PixivPostRequestEvent
         downloadResponses,
       };
 
-      log('Response: ', inspect(reply, false, null, true));
+      // log('Response: ', inspect(reply, false, null, true));
 
       msg.respond(sc.encode(safeStringify(reply)));
     } catch (err) {
