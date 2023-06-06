@@ -23,13 +23,17 @@ const container = (async () => {
     executablePath: puppeteer.executablePath('chrome'),
   });
 
-  const client = await PixivApiClient.create(
-    {
-      userId: env.PIXIV_ID || '',
-      password: env.PIXIV_PW || '',
-    },
-    browser,
-  );
+  const client = env.PIXIV_RT
+    ? await PixivApiClient.create(
+      env.PIXIV_RT
+    )
+    : await PixivApiClient.create(
+      {
+        userId: env.PIXIV_ID || '',
+        password: env.PIXIV_PW || '',
+      },
+      browser,
+    );
 
   container.bind<PixivApiClient>(PixivApiClient).toConstantValue(client);
 
