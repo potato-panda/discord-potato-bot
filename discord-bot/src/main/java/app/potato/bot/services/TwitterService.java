@@ -4,32 +4,30 @@ import app.potato.bot.MongoDBConnection;
 import app.potato.bot.NatsConnection;
 import app.potato.bot.listeners.handlers.TwitterPostLinkRequest;
 import app.potato.bot.models.TwitterPostRequest;
-import app.potato.bot.utils.ChannelUtil;
 import app.potato.bot.utils.NatsUtil;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSDownloadStream;
 import com.mongodb.client.gridfs.model.GridFSFile;
 import io.nats.client.Connection;
+import io.nats.client.Message;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.Objects;
 
-import static app.potato.bot.services.ContentModerationService.ContentModerationResponse;
-import static app.potato.bot.services.ContentModerationService.requestImageContentModeration;
+import static app.potato.bot.services.ContentModerationService.ContentModerationData;
 import static app.potato.bot.services.FileDownloadResponse.FileDownloadMetadata;
-import static app.potato.bot.services.TwitterService.TwitterModeratedFile.TwitterModerationData;
 import static app.potato.bot.services.TwitterService.TwitterPostLinkRequestReply.TwitterPostMetadata;
 import static com.mongodb.client.model.Filters.eq;
 
 public
-class TwitterService {
+class TwitterService extends ContentModeratedService {
 
     private static final Logger logger
             = LoggerFactory.getLogger( TwitterService.class );
@@ -37,34 +35,36 @@ class TwitterService {
     public static
     TwitterServiceResult requestPost( MessageReceivedEvent event,
                                       TwitterPostLinkRequest request )
-    throws IOException, InterruptedException, ExecutionException
+    throws IOException, InterruptedException
     {
         byte[] requestBytes = NatsUtil.getObjectBytes( request );
 
         Connection nc = NatsConnection.instance();
 
-        TwitterPostLinkRequestReply twitterPostLinkRequestReply
-                = nc.request( "twitter.post.request",
-                              requestBytes ).handle( ( message, throwable ) -> {
-            try {
-                return NatsUtil.getMessageObject( message,
-                                                  TwitterPostLinkRequestReply.class );
-            }
-            catch ( Exception e ) {
-                logger.error( "Error transforming response : {}",
-                              e.getMessage() );
-                return null;
-            }
-        } ).get();
+        TwitterPostLinkRequestReply twitterPostLinkRequestReply;
+        Message message = nc.request( "twitter.post.request",
+                                      requestBytes,
+                                      Duration.ofMinutes( 3 ) );
+
+        Objects.requireNonNull( message,
+                                "Request Timed out" );
+
+        try {
+            twitterPostLinkRequestReply = NatsUtil.getMessageObject( message,
+                                                                     TwitterPostLinkRequestReply.class );
+        }
+        catch ( Exception e ) {
+            logger.error( "Error transforming response : {}",
+                          e.getMessage() );
+            return null;
+        }
 
         ArrayList<FileDownloadResponse> fileDownloadResponses
                 = twitterPostLinkRequestReply.downloadResponses();
         TwitterPostMetadata twitterPostMetadata
                 = twitterPostLinkRequestReply.metadata();
 
-        boolean nsfwChannel = ChannelUtil.isNsfwChannel( event );
-
-        ArrayList<TwitterModeratedFile> moderatedFiles
+        ArrayList<ModeratedContent> moderatedContents
                 = fileDownloadResponses.stream()
                                        .reduce( new ArrayList<>(),
                                                 ( twitterServiceResults, fileDownloadResponse ) -> {
@@ -96,10 +96,13 @@ class TwitterService {
                                                                         bucket
                                                                         = MongoDBConnection.bucket();
 
+                                                                ObjectId oid
+                                                                        = new ObjectId( twitterPostRequest.getKey() );
+
 
                                                                 GridFSFile entry
                                                                         = bucket.find( eq( "_id",
-                                                                                           new ObjectId( twitterPostRequest.getKey() ) ) )
+                                                                                           oid ) )
                                                                                 .first();
 
                                                                 if ( entry != null ) {
@@ -115,28 +118,26 @@ class TwitterService {
                                                                     byte[]
                                                                             imageBytes
                                                                             = downloadStream.readAllBytes();
+
                                                                     downloadStream.close();
 
-
-                                                                    TwitterModerationData
+                                                                    ContentModerationData
                                                                             moderationData
-                                                                            = new TwitterModerationData( twitterPostMetadata.suggestive(),
-                                                                                                         !twitterPostMetadata.suggestive() && !nsfwChannel
-                                                                                                         ? requestImageContentModeration( event,
-                                                                                                                                          fileDownloadMetadata.mimeType(),
-                                                                                                                                          imageBytes )
-                                                                                                         : Optional.empty() );
+                                                                            = new ContentModerationData( twitterPostMetadata.suggestive(),
+                                                                                                         getContentModerationData( event,
+                                                                                                                                   twitterPostMetadata.suggestive(),
+                                                                                                                                   fileDownloadMetadata,
+                                                                                                                                   imageBytes ) );
 
-                                                                    TwitterModeratedFile
+                                                                    ModeratedContent
                                                                             result
-                                                                            = new TwitterModeratedFile( fileDownloadMetadata,
-                                                                                                        imageBytes,
-                                                                                                        moderationData );
+                                                                            = new ModeratedContent( fileDownloadMetadata,
+                                                                                                    moderationData,
+                                                                                                    imageBytes );
 
                                                                     twitterServiceResults.add( result );
                                                                 }
                                                             }
-
                                                         }
                                                         catch ( Exception e ) {
                                                             logger.info( "Error moderating : {}",
@@ -151,33 +152,19 @@ class TwitterService {
                                                 } );
 
         return new TwitterServiceResult( twitterPostMetadata,
-                                         moderatedFiles );
+                                         moderatedContents );
     }
 
     public
     record TwitterServiceResult(
             TwitterPostMetadata metadata,
-            ArrayList<TwitterModeratedFile> moderatedFiles
+            ArrayList<ModeratedContent> moderatedContents
     ) {}
 
     public
-    record TwitterModeratedFile(
-            FileDownloadMetadata metadata,
-            byte[] imageData,
-            TwitterModerationData moderation
-    )
-    {
-        public
-        record TwitterModerationData(
-                boolean suggestive,
-                Optional<ContentModerationResponse> contentModerationResponse
-        ) {}
-    }
-
-    public
     record TwitterPostLinkRequestReply(
-            ArrayList<FileDownloadResponse> downloadResponses,
-            TwitterPostMetadata metadata
+            TwitterPostMetadata metadata,
+            ArrayList<FileDownloadResponse> downloadResponses
     )
     {
         public

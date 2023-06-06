@@ -4,7 +4,6 @@ import app.potato.bot.MongoDBConnection;
 import app.potato.bot.NatsConnection;
 import app.potato.bot.listeners.handlers.PixivPostLinkRequest;
 import app.potato.bot.models.PixivPostRequest;
-import app.potato.bot.utils.ChannelUtil;
 import app.potato.bot.utils.NatsUtil;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.gridfs.GridFSBucket;
@@ -21,17 +20,14 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.Optional;
 
-import static app.potato.bot.services.ContentModerationService.ContentModerationResponse;
-import static app.potato.bot.services.ContentModerationService.requestImageContentModeration;
+import static app.potato.bot.services.ContentModerationService.ContentModerationData;
 import static app.potato.bot.services.FileDownloadResponse.FileDownloadMetadata;
-import static app.potato.bot.services.PixivService.PixivModeratedFile.PixivModerationData;
 import static app.potato.bot.services.PixivService.PixivPostLinkRequestReply.PixivPostMetadata;
 import static com.mongodb.client.model.Filters.eq;
 
 public
-class PixivService {
+class PixivService extends ContentModeratedService {
 
     private static final Logger logger
             = LoggerFactory.getLogger( PixivService.class );
@@ -68,9 +64,7 @@ class PixivService {
         PixivPostMetadata pixivPostMetadata
                 = pixivPostLinkRequestReply.metadata();
 
-        boolean nsfwChannel = ChannelUtil.isNsfwChannel( event );
-
-        ArrayList<PixivModeratedFile> moderatedFiles
+        ArrayList<ModeratedContent> moderatedContents
                 = fileDownloadResponses.stream()
                                        .reduce( new ArrayList<>(),
                                                 ( pixivServiceResults, fileDownloadResponse ) -> {
@@ -104,9 +98,12 @@ class PixivService {
                                                                         = MongoDBConnection.bucket();
 
 
+                                                                ObjectId oid
+                                                                        = new ObjectId( pixivPostRequest.getKey() );
+
                                                                 GridFSFile entry
                                                                         = bucket.find( eq( "_id",
-                                                                                           new ObjectId( pixivPostRequest.getKey() ) ) )
+                                                                                           oid ) )
                                                                                 .first();
 
                                                                 if ( entry != null ) {
@@ -122,23 +119,24 @@ class PixivService {
                                                                     byte[]
                                                                             imageBytes
                                                                             = downloadStream.readAllBytes();
+
                                                                     downloadStream.close();
 
-                                                                    PixivModerationData
+                                                                    ContentModerationData
                                                                             moderationData
-                                                                            = new PixivModerationData( pixivPostMetadata.adult(),
-                                                                                                       // Do moderation if safe for work
-                                                                                                       !pixivPostMetadata.adult() && !nsfwChannel
-                                                                                                       ? requestImageContentModeration( event,
-                                                                                                                                        fileDownloadMetadata.mimeType(),
-                                                                                                                                        imageBytes )
-                                                                                                       : Optional.empty() );
+                                                                            = new ContentModerationData( pixivPostMetadata.adult(),
+                                                                                                         // Do moderationData if safe for work
+                                                                                                         getContentModerationData( event,
+                                                                                                                                   pixivPostMetadata.adult(),
+                                                                                                                                   fileDownloadMetadata,
+                                                                                                                                   imageBytes ) );
 
-                                                                    PixivModeratedFile
+                                                                    ModeratedContent
                                                                             pixivModeratedFile
-                                                                            = new PixivModeratedFile( fileDownloadMetadata,
-                                                                                                      imageBytes,
-                                                                                                      moderationData );
+                                                                            = new ModeratedContent( fileDownloadMetadata,
+                                                                                                    moderationData,
+                                                                                                    imageBytes
+                                                                    );
 
                                                                     pixivServiceResults.add( pixivModeratedFile );
                                                                 }
@@ -157,33 +155,19 @@ class PixivService {
                                                 } );
 
         return new PixivServiceResult( pixivPostMetadata,
-                                       moderatedFiles );
+                                       moderatedContents );
     }
 
     public
     record PixivServiceResult(
             PixivPostMetadata metadata,
-            ArrayList<PixivModeratedFile> moderatedFiles
+            ArrayList<ModeratedContent> moderatedContents
     ) {}
 
     public
-    record PixivModeratedFile(
-            FileDownloadMetadata fileMetadata,
-            byte[] imageData,
-            PixivModerationData moderation
-    )
-    {
-        public
-        record PixivModerationData(
-                boolean adult,
-                Optional<ContentModerationResponse> contentModerationResponse
-        ) {}
-    }
-
-    public
     record PixivPostLinkRequestReply(
-            ArrayList<FileDownloadResponse> downloadResponses,
-            PixivPostMetadata metadata
+            PixivPostMetadata metadata,
+            ArrayList<FileDownloadResponse> downloadResponses
     )
     {
 
@@ -204,7 +188,7 @@ class PixivService {
         {
             public
             enum IllustrationType {
-                illust( "illust" ), ugoira( "ugoira" ), manga( "manga" );
+                illust( "illust" ), manga( "manga" ), ugoira( "ugoira" );
 
                 private final String value;
 

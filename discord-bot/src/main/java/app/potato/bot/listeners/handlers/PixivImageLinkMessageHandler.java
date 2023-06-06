@@ -1,5 +1,6 @@
 package app.potato.bot.listeners.handlers;
 
+import app.potato.bot.services.ContentModeratedService.ModeratedContent;
 import app.potato.bot.utils.Disabled;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -14,13 +15,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHandler;
-import static app.potato.bot.services.PixivService.*;
+import static app.potato.bot.services.PixivService.PixivServiceResult;
+import static app.potato.bot.services.PixivService.requestPost;
 import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
 
 @Disabled
@@ -38,10 +39,10 @@ class PixivImageLinkMessageHandler extends AbstractMessageHandler {
     @Override
     public
     void handle( MessageReceivedEvent event )
-    throws IOException, ExecutionException, InterruptedException
+    throws IOException, InterruptedException
     {
         // suppress initial embeds
-        event.getMessage().suppressEmbeds( true );
+        event.getMessage().suppressEmbeds( true ).queue();
         String string = getSanitizedContent( event );
         // TODO Split link url and optional flags
         String[] splits = string.split( "\\s+" );
@@ -95,12 +96,12 @@ class PixivImageLinkMessageHandler extends AbstractMessageHandler {
             PixivServiceResult serviceResults = requestPost( event,
                                                              request );
 
-            ArrayList<PixivModeratedFile> moderatedFile
-                    = serviceResults.moderatedFiles();
+            ArrayList<ModeratedContent> moderatedFile
+                    = serviceResults.moderatedContents();
 
             List<FileUpload> uploadFiles = moderatedFile.stream()
                                                         .map( pixivModeratedFile -> FileUpload.fromData( pixivModeratedFile.imageData(),
-                                                                                                         pixivModeratedFile.fileMetadata()
+                                                                                                         pixivModeratedFile.metadata()
                                                                                                                            .fileName() ) )
                                                         .collect( Collectors.toList() );
 

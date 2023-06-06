@@ -30,9 +30,7 @@ export class TwitterService {
   async getOneTweet(tweetUrl: string) {
     const { pathname } = new URL(tweetUrl);
     const tweetId = pathname.split('/').splice(-1)[0];
-    console.log('tweetId', tweetId)
     const tweet = await this.api.singleTweet(tweetId);
-    console.log('thistweet', tweet)
     return tweet;
   }
 
@@ -78,7 +76,7 @@ export class TwitterService {
           // Find stored reply else create new reply
           const entry =
             await TwitterPostRequestReplyModel.findOne({
-              postId: postId,
+              postId,
               key,
             }).exec() ??
             new TwitterPostRequestReplyModel({
@@ -87,8 +85,6 @@ export class TwitterService {
             });
 
           await entry.save();
-
-          log('metadata:', inspect(metadata, false, null, true));
 
           return Promise.resolve<TwitterPost.FileDownloadResponse>({
             metadata,

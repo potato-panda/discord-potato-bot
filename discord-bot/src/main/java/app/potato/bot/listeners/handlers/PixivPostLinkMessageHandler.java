@@ -1,5 +1,6 @@
 package app.potato.bot.listeners.handlers;
 
+import app.potato.bot.utils.ExtendedFileUpload;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -14,7 +15,6 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -67,39 +67,40 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
             PixivServiceResult pixivServiceResult = requestPost( event,
                                                                  request );
 
-            ArrayList<PixivModeratedFile> moderatedFiles
-                    = pixivServiceResult.moderatedFiles();
+            ArrayList<ModeratedContent> moderatedContents
+                    = pixivServiceResult.moderatedContents();
 
-            ArrayList<FileUpload> filesToUpload = moderatedFiles.stream()
-                                                                .map( pixivModeratedFile -> {
-                                                                    FileUpload
-                                                                            fileUpload
-                                                                            = FileUpload.fromData( pixivModeratedFile.imageData(),
-                                                                                                   pixivModeratedFile.fileMetadata()
-                                                                                                                     .getFileNameWithExtension() );
+            ArrayList<ExtendedFileUpload> filesToUpload
+                    = moderatedContents.stream()
+                                       .map( moderatedContent -> {
+                                           FileUpload
+                                                   fileUpload
+                                                   = FileUpload.fromData( moderatedContent.imageData(),
+                                                                          moderatedContent.metadata()
+                                                                                          .getFileNameWithExtension() );
 
-                                                                    if (
-                                                                        // If adult is true
-                                                                            pixivModeratedFile.moderation()
-                                                                                              .adult() ||
-                                                                                    // Else check moderation data
-                                                                                    ( pixivModeratedFile.moderation()
-                                                                                                        .contentModerationResponse()
-                                                                                                        .isPresent() && pixivModeratedFile.moderation()
-                                                                                                                                          .contentModerationResponse()
-                                                                                                                                          .get()
-                                                                                                                                          .result()
-                                                                                                                                          .isPresent() && pixivModeratedFile.moderation()
-                                                                                                                                                                            .contentModerationResponse()
-                                                                                                                                                                            .get()
-                                                                                                                                                                            .result()
-                                                                                                                                                                            .get() ) )
+                                           if ( moderatedContent.moderationData()
+                                                                .isNsfw()
+                                                   || ( moderatedContent.moderationData()
+                                                                        .contentModerationResponse()
+                                                                        .isPresent()
+                                                   && moderatedContent.moderationData()
+                                                                      .contentModerationResponse()
+                                                                      .get()
+                                                                      .result()
+                                                                      .isPresent()
+                                                   && moderatedContent.moderationData()
+                                                                      .contentModerationResponse()
+                                                                      .get()
+                                                                      .result()
+                                                                      .get() ) )
+                                               return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                                              fileUpload.asSpoiler() );
 
-                                                                        return fileUpload.asSpoiler();
-
-                                                                    return fileUpload;
-                                                                } )
-                                                                .collect( Collectors.toCollection( ArrayList::new ) );
+                                           return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                                          fileUpload );
+                                       } )
+                                       .collect( Collectors.toCollection( ArrayList::new ) );
 
             PixivPostMetadata metadata = pixivServiceResult.metadata();
 
@@ -152,49 +153,44 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
             if ( option.selectPages.size() > 0 ) {
                 int selectCount = pagesToSend.size();
                 for ( Integer idx : pagesToSend ) {
-                    FileUpload page = filesToUpload.get( idx );
+                    ExtendedFileUpload fileUpload = filesToUpload.get( idx );
                     if ( filesToUpload.get( idx ) != null ) {
 
-                        String imageString
-                                = String.format( "%s/%s (of %s)",
-                                                 ++count,
-                                                 selectCount,
-                                                 imageCount );
-                        boolean exceedsSize = page.getData()
-                                                  .toString()
-                                                  .length() > 25_000_000;
-
-                        if ( exceedsSize ) {
-                            targetMessage.reply( imageString.concat( " Max image size was exceeded" ) )
+                        String imageString = String.format( "%s/%s (of %s)",
+                                                            ++count,
+                                                            selectCount,
+                                                            imageCount );
+                        if ( fileUpload.metadata().size() > 25_000_000 )
+                            targetMessage.reply( imageString.concat( " Attachment exceeds Max upload limit" ) )
                                          .mentionRepliedUser( false )
                                          .queue();
-                        } else
+                        else {
                             targetMessage.reply( imageString )
                                          .mentionRepliedUser( false )
-                                         .addFiles( filesToUpload.get( idx ) )
+                                         .addFiles( fileUpload.fileUpload() )
                                          .queue();
+                        }
                     }
                 }
             } else {
-                for ( FileUpload fileUpload : filesToUpload ) {
+                for ( ExtendedFileUpload fileUpload : filesToUpload ) {
 
                     String imageString = String.format( "%s/%s",
                                                         ++count,
                                                         imageCount );
-                    boolean exceedsSize = fileUpload.getData()
-                                                    .readAllBytes()
-                            .length > 25_000_000;
-                    if ( exceedsSize ) {
-                        targetMessage.reply( imageString.concat( " Max upload limit was exceeded" ) )
+                    if ( fileUpload.metadata().size() > 25_000_000 )
+                        targetMessage.reply( imageString.concat( " Attachment exceeds Max upload limit" ) )
                                      .mentionRepliedUser( false )
                                      .queue();
-                    } else
+                    else {
                         targetMessage.reply( imageString )
                                      .mentionRepliedUser( false )
-                                     .addFiles( fileUpload )
+                                     .addFiles( fileUpload.fileUpload() )
                                      .queue();
+                    }
                 }
             }
+
         }
     }
 
@@ -220,31 +216,29 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                       // Default pick
                                       boolean pick = true;
                                       // Select pages
-                                      ArrayList<Integer> pages
+                                      ArrayList<Integer> selectPages
                                               = new ArrayList<>() {};
 
                                       ArrayList<String> flagOptions
-                                              = new ArrayList<>();
-                                      Collections.addAll( flagOptions,
-                                                          "-p",
-                                                          "-o",
-                                                          "-q" );
+                                              = new ArrayList<>( List.of( new String[]{
+                                              "-p", "-o", "-q"
+                                      } ) );
 
                                       // read option flags and values
-                                      String switchFlag = "";
-                                      for ( String s : msgOptsSegment ) {
+                                      String optionFlag = "";
+                                      for ( String optionKey : msgOptsSegment ) {
 
                                           // If next is flag, set as current flag, and remove flag from next flags to check
-                                          if ( flagOptions.contains( s ) ) {
-                                              switchFlag = s;
+                                          if ( flagOptions.contains( optionKey ) ) {
+                                              optionFlag = optionKey;
                                           }
                                           // If current flag then get values
                                           else {
-                                              String optVal = s.trim();
+                                              String optVal = optionKey.trim();
 
-                                              switch ( switchFlag ) {
+                                              switch ( optionFlag ) {
                                                   case "-o", "-p" -> {
-                                                      if ( switchFlag.matches( "-o" ) ) {
+                                                      if ( optionFlag.matches( "-o" ) ) {
                                                           pick = false;
                                                       }
                                                       // if value matches a range
@@ -255,7 +249,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                                                           .toList();
                                                           for ( String r : range ) {
                                                               if ( !r.isEmpty() ) {
-                                                                  pages.add( Integer.parseInt( r ) );
+                                                                  selectPages.add( Integer.parseInt( r ) );
                                                               }
                                                           }
                                                       }
@@ -279,7 +273,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                                           }
                                                       }
                                                       flagOptions.remove( "-q" );
-                                                      switchFlag = "";
+                                                      optionFlag = "";
                                                   }
                                                   default -> {
                                                   }
@@ -305,7 +299,7 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
                                                       = new PixivPostLinkOptions( postId,
                                                                                   quality,
                                                                                   pick,
-                                                                                  pages );
+                                                                                  selectPages );
 
                                               pixivPostLinkRequests.add( pixivPostLinkOptions );
                                           }

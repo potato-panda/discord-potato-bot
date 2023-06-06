@@ -196,4 +196,10 @@ class ContentModerationService {
             this.value              = value;
         }
     }
+
+    public
+    record ContentModerationData(
+            boolean isNsfw,
+            Optional<ContentModerationResponse> contentModerationResponse
+    ) {}
 }

@@ -31,7 +31,7 @@ export class PixivService {
 
     return {
       metadata: {
-        adult: Boolean(xRestrict),
+        adult: !!xRestrict,
         tags: tags.map((tag) => tag.name),
         url: `https://www.pixiv.net/artworks/${illustId}`,
         title,
@@ -55,9 +55,9 @@ export class PixivService {
 
     const result: PixivPost.FileDownloadResponse[] = [];
 
-    for (const illust of illusts) {
+    for (const [i, illust] of illusts.entries()) {
       if (illust.status === 'fulfilled') {
-        const { metadata, data } = illust.value;
+        const { data, metadata } = illust.value;
 
         const upload = await uploadStream(metadata, data);
 
@@ -72,14 +72,13 @@ export class PixivService {
 
         // Find stored reply else create new reply
         const entry =
-
           await PixivPostRequestReplyModel.findOne({
-            postId: illustMetadata.id,
+            postId: `${illustMetadata.id}_p${i + 1}`,
             key,
           })?.exec()
           ??
           new PixivPostRequestReplyModel({
-            postId: illustMetadata.id,
+            postId: `${illustMetadata.id}_p${i + 1}`,
             key,
           });
 

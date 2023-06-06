@@ -1,5 +1,6 @@
 package app.potato.bot.listeners.handlers;
 
+import app.potato.bot.utils.ExtendedFileUpload;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -66,37 +67,40 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
             TwitterServiceResult twitterServiceResult = requestPost( event,
                                                                      request );
 
-            ArrayList<TwitterModeratedFile> moderatedFiles
-                    = twitterServiceResult.moderatedFiles();
+            ArrayList<ModeratedContent> moderatedContents
+                    = twitterServiceResult.moderatedContents();
 
-            ArrayList<FileUpload> filesToUpload = moderatedFiles.stream()
-                                                                .map( twitterModeratedFile -> {
-                                                                    FileUpload
-                                                                            fileUpload
-                                                                            = FileUpload.fromData( twitterModeratedFile.imageData(),
-                                                                                                   twitterModeratedFile.metadata()
-                                                                                                                       .getFileNameWithExtension() );
+            ArrayList<ExtendedFileUpload> filesToUpload
+                    = moderatedContents.stream()
+                                       .map( moderatedContent -> {
+                                           FileUpload
+                                                   fileUpload
+                                                   = FileUpload.fromData( moderatedContent.imageData(),
+                                                                          moderatedContent.metadata()
+                                                                                          .getFileNameWithExtension() );
 
-                                                                    if ( twitterModeratedFile.moderation()
-                                                                                             .suggestive()
-                                                                            || ( twitterModeratedFile.moderation()
-                                                                                                     .contentModerationResponse()
-                                                                                                     .isPresent()
-                                                                            && twitterModeratedFile.moderation()
-                                                                                                   .contentModerationResponse()
-                                                                                                   .get()
-                                                                                                   .result()
-                                                                                                   .isPresent()
-                                                                            && twitterModeratedFile.moderation()
-                                                                                                   .contentModerationResponse()
-                                                                                                   .get()
-                                                                                                   .result()
-                                                                                                   .get() ) )
-                                                                        return fileUpload.asSpoiler();
+                                           if ( moderatedContent.moderationData()
+                                                                .isNsfw()
+                                                   || ( moderatedContent.moderationData()
+                                                                        .contentModerationResponse()
+                                                                        .isPresent()
+                                                   && moderatedContent.moderationData()
+                                                                      .contentModerationResponse()
+                                                                      .get()
+                                                                      .result()
+                                                                      .isPresent()
+                                                   && moderatedContent.moderationData()
+                                                                      .contentModerationResponse()
+                                                                      .get()
+                                                                      .result()
+                                                                      .get() ) )
+                                               return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                                              fileUpload.asSpoiler() );
 
-                                                                    return fileUpload;
-                                                                } )
-                                                                .collect( Collectors.toCollection( ArrayList::new ) );
+                                           return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                                          fileUpload );
+                                       } )
+                                       .collect( Collectors.toCollection( ArrayList::new ) );
 
             TwitterPostMetadata metadata = twitterServiceResult.metadata();
 
@@ -113,6 +117,7 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                                    String.valueOf( metadata.favourites() ),
                                                    true )
                                         .setFooter( "Bird App" );
+
             SimpleDateFormat simpleDateFormat
                     = new SimpleDateFormat( "EEE MMM dd HH:mm:ss Z yyyy" );
             embedBuilder.setTimestamp( simpleDateFormat.parse( metadata.createdAt() )
@@ -130,22 +135,20 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
             int count      = 0;
 
             // Send images
-            for ( FileUpload fileUpload : filesToUpload ) {
+            for ( ExtendedFileUpload fileUpload : filesToUpload ) {
                 String imageString = String.format( "%s/%s",
                                                     ++count,
                                                     imageCount );
-                boolean exceedsSize = fileUpload.getData()
-                                                .readAllBytes()
-                        .length > 25_000_000;
-                if ( exceedsSize ) {
-                    targetMessage.reply( imageString.concat( " Max upload limit was exceeded" ) )
+                if ( fileUpload.metadata().size() > 25_000_000 )
+                    targetMessage.reply( imageString.concat( " Attachment exceeds Max upload limit" ) )
                                  .mentionRepliedUser( false )
                                  .queue();
-                } else
+                else {
                     targetMessage.reply( imageString )
                                  .mentionRepliedUser( false )
-                                 .addFiles( fileUpload )
+                                 .addFiles( fileUpload.fileUpload() )
                                  .queue();
+                }
             }
 
         }
@@ -171,15 +174,5 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                                   twitterPostLinkRequests.addAll( twitterPostLinkRequests2 );
                                   return twitterPostLinkRequests;
                               } );
-    }
-
-    private
-    long getLongTimeInSeconds( String dateString ) throws ParseException
-    {
-        SimpleDateFormat dateFormat
-                = new SimpleDateFormat( "EEE MMM dd HH:mm:ss Z yyyy" );
-        java.util.Date date         = dateFormat.parse( dateString );
-        long           milliseconds = date.getTime();
-        return milliseconds / 1000;
     }
 }
