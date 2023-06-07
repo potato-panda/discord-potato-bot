@@ -48,7 +48,7 @@ services:
       - 8222:8222
     command: "--user ${NATS_USER} --pass ${NATS_PASS}"
   mongo:
-    image: mongo
+    image: mongo:4.4.18
     container_name: "${MONGO_NAME:-mongo}"
     ports:
       - 27017:27017
