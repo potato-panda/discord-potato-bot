@@ -51,7 +51,8 @@ export class PixivService {
     illustMetadata: Illust.Illust,
     quality?: string,
   ): Promise<PixivPost.FileDownloadResponse[]> {
-    const illusts = await Utils.downloadIllusts(illustMetadata);
+    const q = quality === 'REGULAR' ? 'large' : 'original';
+    const illusts = await Utils.downloadIllusts(illustMetadata, q);
 
     const result: PixivPost.FileDownloadResponse[] = [];
 
