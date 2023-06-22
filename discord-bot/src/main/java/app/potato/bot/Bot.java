@@ -1,5 +1,7 @@
 package app.potato.bot;
 
+import app.potato.bot.registries.ContentModerationRegistry;
+import app.potato.bot.registries.ListenerRegistry;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -7,40 +9,41 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.util.Objects;
 
-import static app.potato.bot.services.SlashCommandsService.setGlobalSlashCommands;
-import static app.potato.bot.services.SlashCommandsService.setGuildSlashCommands;
-import static app.potato.bot.utils.ListenerUtil.getListenersAsArray;
+import static app.potato.bot.registries.SlashCommandsRegistry.setGlobalSlashCommands;
+import static app.potato.bot.registries.SlashCommandsRegistry.setGuildSlashCommands;
+import static app.potato.bot.utils.StringUtil.isNullOrBlank;
 
-public
+public final
 class Bot {
     private static final
     Logger logger = LoggerFactory.getLogger( Bot.class );
 
     public static
     void main( String[] args ) throws Exception {
-        Optional<String> env = Optional.ofNullable( System.getenv( "ENV" ) );
-        if ( env.isEmpty() || !env.get().equals( "PROD" ) ) {
-            env = Optional.of( "DEV" );
+        String env = System.getenv( "ENV" );
+        if ( !Objects.equals( env,
+                              "PROD" ) )
+        {
+            env = "DEV";
         }
-        Optional<String> botToken
-                = Optional.ofNullable( System.getenv( "BOT_TOKEN" ) );
-        if ( botToken.isEmpty() ) {
-            throw new Exception( "BOT_TOKEN env var must be provided" );
+        String discordBotToken
+                = System.getenv( "DISCORD_BOT_TOKEN" );
+        if ( isNullOrBlank( discordBotToken ) ) {
+            throw new Exception( "DISCORD_BOT_TOKEN env var must be provided" );
         }
 
-        JDABuilder builder = JDABuilder.createDefault( botToken.get() );
+        JDABuilder builder = JDABuilder.createDefault( discordBotToken );
 
         builder.enableIntents( GatewayIntent.MESSAGE_CONTENT,
                                GatewayIntent.GUILD_MESSAGES );
 
         JDA jda = builder.build();
 
-        Optional<String> guildId
-                = Optional.ofNullable( System.getenv( "GUILD_ID" ) );
+        ContentModerationRegistry.instance();
 
-        jda.addEventListener( getListenersAsArray() );
+        jda.addEventListener( ListenerRegistry.getListeners().toArray() );
 
         NatsConnection.instance();
 
@@ -50,22 +53,23 @@ class Bot {
 
         jda.awaitReady();
 
-
         // Register Guild Commands when in Dev Mode
-        if ( env.get().equals( "DEV" ) ) {
+        if ( env.equals( "DEV" ) ) {
             try {
-                if ( guildId.isPresent() ) {
-                    Guild guild = jda.getGuildById( guildId.get() );
+                String discordDevGuildId
+                        = System.getenv( "DISCORD_DEV_GUILD_ID" );
+                if ( !isNullOrBlank( discordDevGuildId ) ) {
+                    Guild guild = jda.getGuildById( discordDevGuildId );
 
                     if ( guild != null ) {
                         logger.info( "Bot is a member of guild: {}",
-                                     guildId );
+                                     discordDevGuildId );
 
                         setGuildSlashCommands( guild );
 
                     } else {
                         logger.info( "Bot is not a member of guild: {}",
-                                     guildId );
+                                     discordDevGuildId );
                     }
                 }
             }

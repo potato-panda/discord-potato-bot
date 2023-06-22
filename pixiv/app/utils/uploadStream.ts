@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import { bucket } from '../Mongoose';
 import { FileDownload } from '../services/FileDownload';
 
-export default async (fileMetadata: FileDownload.Metadata, data: Buffer | string) => {
+export async function uploadStream(fileMetadata: FileDownload.Metadata, data: Buffer | string) {
   const b = await bucket;
   return new Promise<mongoose.mongo.GridFSBucketWriteStream>((resolve, reject) => {
     const readableData = new Readable();

@@ -1,14 +1,20 @@
-import 'reflect-metadata';
-
-import { container as resolvedContainer } from './inversity.config';
-
+import { env } from 'node:process';
 import './Mongoose';
-import nats from './Nats';
+import NatsClient from './NatsClient';
 import { TwitterPostRequestListener } from './events';
+import { TwitterService } from './services/TwitterService';
 
 (async function () {
-  const container = await resolvedContainer;
-  container
-    .resolve<TwitterPostRequestListener>(TwitterPostRequestListener)
-    .listen(await nats);
+  try {
+
+    const twitterService = new TwitterService(env.TWITTER_TOKENS);
+
+    const natsClient = await NatsClient.create();
+
+    new TwitterPostRequestListener(twitterService)
+      .listen(natsClient.connection);
+
+  } catch (error) {
+    console.log('Error:', error);
+  }
 })();

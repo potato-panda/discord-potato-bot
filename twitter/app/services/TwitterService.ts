@@ -1,47 +1,140 @@
-import Ffmpeg from 'fluent-ffmpeg';
-import { inject, injectable } from 'inversify';
-import { log } from 'node:console';
-import { env } from 'node:process';
+import Ffmpeg = require('fluent-ffmpeg');
+import { request as httpsRequest } from 'node:https';
 import { Readable, Writable } from 'node:stream';
-import { inspect } from 'node:util';
-import { TweetExtendedEntitiesV1, TwitterApi } from 'twitter-api-v2';
-import TwitterApiv1ReadOnly from 'twitter-api-v2/dist/esm/v1/client.v1.read';
+import { generateCsrfToken, generateGuestToken } from 'twitter-web-auth';
+import { bearer, userAgent } from '../constants';
 import { TwitterPost } from '../events/TwitterPostRequest';
 import { TwitterPostRequestReplyModel } from '../models/TwitterPostRequestReply';
-import createHttpRequest from '../utils/createHttpRequest';
-import uploadStream from '../utils/uploadStream';
-import { DownloadService, FileDownload } from './DownloadService';
+import { Tweet } from '../types/Tweet';
+import { FileDownload, createHttpRequest, download, uploadStream, } from '../utils';
 
-@injectable()
+// Reminder: Tokens generated with bearer token must be sent alongside that bearer token. Using other bearer tokens will not work.
+
 export class TwitterService {
-  private api: TwitterApiv1ReadOnly;
-  constructor(
-    @inject(DownloadService)
-    private downloader: DownloadService,
-  ) {
-    this.api = new TwitterApi({
-      appKey: env.TWITTER_APP_KEY ?? '',
-      appSecret: env.TWITTER_APP_SECRET ?? '',
-      accessSecret: env.TWITTER_ACCESS_SECRET ?? '',
-      accessToken: env.TWITTER_ACCESS_TOKEN ?? '',
-    }).readOnly.v1;
+  readonly authTokens: Set<string> = new Set<string>;
+  private csrfToken: string | null = null;
+  private guestToken: string | null = null;
+  private baseHeaders = {
+    "user-agent": userAgent,
+    "x-twitter-client-language": "en",
+    "origin": "https://twitter.com",
+    "Authorization": bearer,
   }
 
-  async getOneTweet(tweetUrl: string) {
+  constructor(twitterTokens?: string) {
+    if (twitterTokens) {
+      this.authTokens
+        = twitterTokens ?
+          twitterTokens.split(",").length > 0
+            ? new Set(twitterTokens.split(",").filter(s => s))
+            :
+            new Set([twitterTokens])
+          : new Set([]);
+    }
+  }
+
+  private regenerateCsrfToken() {
+    this.csrfToken = generateCsrfToken();
+  }
+
+  private async regenerateGuestToken() {
+    this.guestToken
+      = (await generateGuestToken() as { guestToken: string })['guestToken'];
+  }
+
+  async getTweet(tweetUrl: string, fallback = true): Promise<Tweet> {
+
     const { pathname } = new URL(tweetUrl);
     const tweetId = pathname.split('/').splice(-1)[0];
-    const tweet = await this.api.singleTweet(tweetId);
-    return tweet;
+
+    if (!this.csrfToken)
+      this.regenerateCsrfToken();
+    if (!this.guestToken)
+      await this.regenerateGuestToken();
+
+    return new Promise<Tweet>((resolve, reject) => {
+
+      const { authTokens, csrfToken, guestToken, baseHeaders } = this;
+
+      try {
+        resolve(request());
+      }
+      catch (e) {
+        if (authTokens.size > 0 && fallback) {
+          for (const [i, authToken] of authTokens.entries()) {
+            try {
+              resolve(request(authToken));
+            } catch (err) {
+              console.log(`Auth Fallback | attempt (${i + 1})`)
+            }
+          }
+          reject('Auth fallbacks rejected')
+        }
+        reject('No auth tokens available')
+      }
+
+      throw new Error('Should not reach here');
+
+      async function request(authToken?: string) {
+
+        const url = `https://api.twitter.com/1.1/statuses/show/${tweetId}.json?tweet_mode=extended&cards_platform=Web-12&include_cards=1&include_reply_count=1&include_user_entities=0`;
+
+        const headers = !authToken ? {
+          ...baseHeaders,
+          "x-guest-token": guestToken ?? '',
+        } : {
+          ...baseHeaders,
+          "x-twitter-active-user": "yes",
+          "x-twitter-auth-type": "OAuth2Session",
+          "x-csrf-token": csrfToken ?? '',
+          "cookie": `auth_token=${authToken}; ct0=${csrfToken ?? ''}`,
+        }
+
+        return new Promise<Tweet>((resolve, reject) => {
+          httpsRequest(url, {
+            method: 'GET',
+            headers,
+          }).on('response', response => {
+
+            // console.log('sent headers', req.getHeaders())
+
+            const chunks: Buffer[] = [];
+            const { statusCode } = response;
+
+            response
+              .on('readable', () => {
+                response.read();
+              })
+              .on('data', data => {
+                chunks.push(data);
+              })
+              .on('end', () => {
+                const result: Tweet = JSON.parse(Buffer.concat(chunks)
+                  .toString('utf-8'));
+                if (statusCode !== 200) {
+                  reject(result);
+                }
+                resolve(result);
+              })
+              .on('close', () => {
+              })
+              .on('error', err => {
+                reject(err)
+              });
+          }).end();
+        });
+      }
+    });
   }
 
   async downloadMedia(
-    postId: string,
-    extendedEntities: TweetExtendedEntitiesV1 | undefined,
+    twid: string,
+    extendedEntities: Tweet['extended_entities'],
   ): Promise<TwitterPost.FileDownloadResponse[]> {
     if (!extendedEntities?.media) return Promise.reject();
 
     const requests = [];
-    for (const [i, media] of extendedEntities.media.entries()) {
+    for (const media of extendedEntities.media) {
       const { type, video_info, media_url_https } = media;
       let stringLink;
       switch (type) {
@@ -57,10 +150,10 @@ export class TwitterService {
         }
           break;
       }
+
       const req = createHttpRequest(stringLink);
 
-      const response = await this.downloader
-        .download(req)
+      const response = await download(req)
         .then(async (response) => {
           let { data, metadata, success } = response;
 
@@ -76,11 +169,11 @@ export class TwitterService {
           // Find stored reply else create new reply
           const entry =
             await TwitterPostRequestReplyModel.findOne({
-              postId,
+              postId: twid,
               key,
             }).exec() ??
             new TwitterPostRequestReplyModel({
-              postId,
+              postId: twid,
               key,
             });
 
@@ -115,7 +208,6 @@ export class TwitterService {
         },
       });
 
-      // rome-ignore lint/suspicious/noExplicitAny: is a Buffer but to expect null
       const gifBinary: any[] = [];
 
       await new Promise<void>((resolve, reject) => {
@@ -135,7 +227,6 @@ export class TwitterService {
             metadata.fileExtension = 'gif';
             metadata.size = data.length;
             resolve();
-            log('finish gif');
           })
           .on('error', (err) => reject(err.message));
 
@@ -154,4 +245,5 @@ export class TwitterService {
       return data;
     }
   }
+
 }

@@ -1,25 +1,20 @@
-import { inject, injectable } from 'inversify';
 import { Msg, StringCodec } from 'nats';
-import { error, log } from 'node:console';
-import { inspect } from 'node:util';
+import { error } from 'node:console';
 import { PixivService } from '../services/PixivService';
 import { safeStringify } from '../utils/String';
-import { BaseListener, BaseListenerEvent } from './Listener';
+import { Listener, ListenerEvent } from './Listener';
 import ListenerSubjects from './ListenerSubjects';
 import { PixivPost } from './PixivPostRequest';
 
-export interface PixivPostRequestEvent extends BaseListenerEvent {
+export interface PixivPostRequestEvent extends ListenerEvent {
   data: PixivPost.Request;
 }
 
-@injectable()
-export class PixivPostRequestListener extends BaseListener<PixivPostRequestEvent> {
-  subject = ListenerSubjects.PixivPostRequest;
+export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
   constructor(
-    @inject(PixivService)
     private service: PixivService,
   ) {
-    super();
+    super(ListenerSubjects.PixivPostRequest);
   }
 
   async onMessage(msg: Msg, data: PixivPost.Request) {

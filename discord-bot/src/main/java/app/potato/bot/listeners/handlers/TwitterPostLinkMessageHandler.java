@@ -1,5 +1,7 @@
 package app.potato.bot.listeners.handlers;
 
+import app.potato.bot.clients.ContentModerationServiceClient.ModeratedContent;
+import app.potato.bot.clients.TwitterPostLinkServiceClientRequestOptions;
 import app.potato.bot.utils.ExtendedFileUpload;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
@@ -18,17 +20,15 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHandler;
-import static app.potato.bot.services.TwitterService.*;
-import static app.potato.bot.services.TwitterService.TwitterPostLinkRequestReply.TwitterPostMetadata;
-import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
+import static app.potato.bot.clients.TwitterServiceMessageClient.TwitterPostLinkRequestReply.TwitterPostMetadata;
+import static app.potato.bot.clients.TwitterServiceMessageClient.TwitterServiceResult;
+import static app.potato.bot.clients.TwitterServiceMessageClient.requestPost;
+import static app.potato.bot.utils.MessageUtil.getSanitizedMessageTextContent;
 
-@MessageHandler
 public final
-class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
+class TwitterPostLinkMessageHandler extends MessageHandler {
 
     private static final Logger logger
             = LoggerFactory.getLogger( TwitterPostLinkMessageHandler.class );
@@ -41,15 +41,17 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
     @Override
     public
     void handle( MessageReceivedEvent event )
-    throws IOException, ExecutionException, InterruptedException, ParseException
+    throws IOException, InterruptedException, ParseException
     {
-        logger.info( "Handled by TwitterPostLinkMessageHandler" );
-        // suppress initial embeds
         Message targetMessage = event.getMessage();
+        logger.info( "Handled by TwitterPostLinkMessageHandler. Raw: {}",
+                     targetMessage.getContentRaw() );
+
+        event.getChannel().asGuildMessageChannel().sendTyping().queue();
 
         targetMessage.suppressEmbeds( true ).queue();
 
-        String string = getSanitizedContent( event );
+        String string = getSanitizedMessageTextContent( event );
 
         String regex = "https://([vf]x)?twitter.com/\\w+/status/\\d+";
 
@@ -59,69 +61,71 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
                         .filter( s -> s.matches( regex ) )
                         .collect( Collectors.toCollection( ArrayList::new ) );
 
-        List<TwitterPostLinkRequest> requests
-                = buildTwitterPostLinkRequest( links );
+        List<TwitterPostLinkServiceClientRequestOptions> requests
+                = buildTwitterPostLinkServiceRequest( links );
 
-        for ( TwitterPostLinkRequest request : requests ) {
+        for ( TwitterPostLinkServiceClientRequestOptions request : requests ) {
 
             TwitterServiceResult twitterServiceResult = requestPost( event,
                                                                      request );
 
+            if ( twitterServiceResult == null ) {
+                logger.info( "Did not receive a response" );
+                continue;
+            }
+
             ArrayList<ModeratedContent> moderatedContents
                     = twitterServiceResult.moderatedContents();
 
+
             ArrayList<ExtendedFileUpload> filesToUpload
-                    = moderatedContents.stream()
-                                       .map( moderatedContent -> {
-                                           FileUpload
-                                                   fileUpload
-                                                   = FileUpload.fromData( moderatedContent.imageData(),
-                                                                          moderatedContent.metadata()
-                                                                                          .getFileNameWithExtension() );
+                    = moderatedContents
+                    .stream()
+                    .map( moderatedContent -> {
+                        FileUpload
+                                fileUpload
+                                = FileUpload.fromData( moderatedContent.data(),
+                                                       moderatedContent.metadata()
+                                                                       .getFileNameWithExtension() );
 
-                                           if ( moderatedContent.moderationData()
-                                                                .isNsfw()
-                                                   || ( moderatedContent.moderationData()
-                                                                        .contentModerationResponse()
-                                                                        .isPresent()
-                                                   && moderatedContent.moderationData()
-                                                                      .contentModerationResponse()
-                                                                      .get()
-                                                                      .result()
-                                                                      .isPresent()
-                                                   && moderatedContent.moderationData()
-                                                                      .contentModerationResponse()
-                                                                      .get()
-                                                                      .result()
-                                                                      .get() ) )
-                                               return new ExtendedFileUpload( moderatedContent.metadata(),
-                                                                              fileUpload.asSpoiler() );
+                        if ( moderatedContent.moderationData()
+                                             .isExplicit()
+                                ||
+                                moderatedContent.moderationData()
+                                                .contentModerationResponses()
+                                        != null )
+                        {
+                            return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                           fileUpload.asSpoiler() );
+                        }
 
-                                           return new ExtendedFileUpload( moderatedContent.metadata(),
-                                                                          fileUpload );
-                                       } )
-                                       .collect( Collectors.toCollection( ArrayList::new ) );
+                        return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                       fileUpload );
+                    } )
+                    .collect( Collectors.toCollection( ArrayList::new ) );
 
             TwitterPostMetadata metadata = twitterServiceResult.metadata();
 
-            EmbedBuilder embedBuilder
-                    = new EmbedBuilder().setColor( Color.decode( "#1da0f2" ) )
-                                        .setThumbnail( metadata.userThumbnailUrl() )
-                                        .setTitle( metadata.userName() + " (@" + metadata.userScreenName() + ")",
-                                                   metadata.userUrl() )
-                                        .setDescription( metadata.content() )
-                                        .addField( "Retweets",
-                                                   String.valueOf( metadata.retweets() ),
-                                                   true )
-                                        .addField( "Likes",
-                                                   String.valueOf( metadata.favourites() ),
-                                                   true )
-                                        .setFooter( "Bird App" );
-
             SimpleDateFormat simpleDateFormat
                     = new SimpleDateFormat( "EEE MMM dd HH:mm:ss Z yyyy" );
-            embedBuilder.setTimestamp( simpleDateFormat.parse( metadata.createdAt() )
-                                                       .toInstant() );
+
+            EmbedBuilder embedBuilder
+                    = new EmbedBuilder()
+                    .setColor( Color.decode( "#" + metadata.embedColour() ) )
+                    .setThumbnail( metadata.userThumbnailUrl() )
+                    .setAuthor( metadata.userName() + " (@" + metadata.userScreenName() + ")",
+                                metadata.userUrl() )
+                    .setDescription( metadata.content() )
+                    .addField( "Likes",
+                               String.valueOf( metadata.favourites() ),
+                               true )
+                    .addField( "Retweets",
+                               String.valueOf( metadata.retweets() ),
+                               true )
+
+                    .setFooter( "Bird App" )
+                    .setTimestamp( simpleDateFormat.parse( metadata.createdAt() )
+                                                   .toInstant() );
 
             MessageEmbed embed = embedBuilder.build();
 
@@ -155,15 +159,16 @@ class TwitterPostLinkMessageHandler extends AbstractMessageHandler {
     }
 
     private
-    ArrayList<TwitterPostLinkRequest> buildTwitterPostLinkRequest( ArrayList<String> splits )
+    ArrayList<TwitterPostLinkServiceClientRequestOptions> buildTwitterPostLinkServiceRequest( ArrayList<String> splits )
     {
         return splits.stream()
-                     .reduce( new ArrayList<TwitterPostLinkRequest>() {},
+                     .reduce( new ArrayList<TwitterPostLinkServiceClientRequestOptions>() {},
                               ( twitterPostLinkRequests, s ) -> {
                                   try {
                                       URL url = new URL( s );
-                                      TwitterPostLinkRequest request
-                                              = new TwitterPostLinkRequest( url.toString() );
+                                      TwitterPostLinkServiceClientRequestOptions
+                                              request
+                                              = new TwitterPostLinkServiceClientRequestOptions( url.toString() );
                                       twitterPostLinkRequests.add( request );
                                   }
                                   catch ( MalformedURLException ignored ) {

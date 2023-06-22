@@ -1,38 +1,30 @@
 package app.potato.bot.commands.slash;
 
+import app.potato.bot.utils.AppCommandProperties;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 
-import javax.annotation.Nonnull;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static app.potato.bot.commands.slash.SlashCommand.AbstractSlashCommand;
-
-@SlashCommand( commandName = "ban", commandDesc = "Bans a user" )
+@AppCommandProperties( commandName = "ban", commandDesc = "Bans a user" )
 public final
-class BanCommand extends AbstractSlashCommand {
+class BanCommand extends SlashCommand {
 
     public
     BanCommand( String commandName,
                 String commandDesc )
     {
         super( commandName,
-               commandDesc );
-    }
-
-    @Nonnull
-    @Override
-    public
-    SlashCommandData commandData() {
-        return Commands.slash( commandName,
-                               commandDesc );
+               commandDesc,
+               Commands.slash( commandName,
+                               commandDesc )
+        );
     }
 
     @Override

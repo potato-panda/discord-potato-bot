@@ -1,6 +1,6 @@
 import { request, RequestOptions } from 'node:https';
 
-export default (url: URL, options?: RequestOptions) => {
+export function createHttpRequest(url: URL, options?: RequestOptions) {
   return request(url, {
     headers: {
       Accept: '*/*',
@@ -11,4 +11,4 @@ export default (url: URL, options?: RequestOptions) => {
     },
     ...options,
   });
-};
+}

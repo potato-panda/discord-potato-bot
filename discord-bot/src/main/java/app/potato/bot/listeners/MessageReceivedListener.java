@@ -1,33 +1,27 @@
 package app.potato.bot.listeners;
 
-import app.potato.bot.services.MessageHandlerService;
+import app.potato.bot.listeners.handlers.MessageHandler;
+import app.potato.bot.registries.MessageHandlerRegistry;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import static app.potato.bot.listeners.Listener.AbstractListener;
-import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHandler;
-
-@Listener
 public
-class MessageReceivedListener extends AbstractListener {
+class MessageReceivedListener extends Listener {
 
     private static final Logger logger
             = LoggerFactory.getLogger( MessageReceivedListener.class );
 
-    private final Map<String, AbstractMessageHandler> handlers
-            = MessageHandlerService.getHandlers();
-
     @Override
     public
-    void onMessageReceived( @NotNull MessageReceivedEvent event ) {
+    void onMessageReceived( @Nonnull MessageReceivedEvent event ) {
 
         // ignore if author is this bot
         if ( event.getAuthor().isBot() ) return;
@@ -43,6 +37,9 @@ class MessageReceivedListener extends AbstractListener {
             message.reply( "Pong!" ).queue();
         }
 
+        ConcurrentHashMap<String, MessageHandler>
+                handlers = MessageHandlerRegistry.getMessageHandlers();
+
         // if content contains a matching handler
         for ( String key : handlers.keySet() ) {
 
@@ -51,7 +48,7 @@ class MessageReceivedListener extends AbstractListener {
                     = Arrays.stream( sanitizedContent.split( "\\s+" ) )
                             .findFirst()
                             .orElse( "" );
-            
+
             // Match Handlers if Https link
             if ( firstElement.contains( "https://" ) ) {
                 URI url = null;

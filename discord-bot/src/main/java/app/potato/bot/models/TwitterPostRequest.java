@@ -7,7 +7,7 @@ import org.bson.types.ObjectId;
 import java.util.Date;
 
 @Entity( "TwitterPostRequests" )
-public
+public final
 class TwitterPostRequest {
     @Id private ObjectId id;
     private     String   postId;
