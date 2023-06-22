@@ -14,7 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Optional;
+
+import static app.potato.bot.utils.StringUtil.isNullOrBlank;
 
 public
 class MongoDBConnection {
@@ -51,34 +52,34 @@ class MongoDBConnection {
     Datastore instance() {
         if ( _connection == null ) {
             try {
-                Optional<String> mongoName
-                        = Optional.ofNullable( System.getenv( "MONGO_NAME" ) );
-                Optional<String> mongoUser
-                        = Optional.ofNullable( System.getenv( "MONGO_INITDB_ROOT_USERNAME" ) );
-                Optional<String> mongoPass
-                        = Optional.ofNullable( System.getenv( "MONGO_INITDB_ROOT_PASSWORD" ) );
+                String mongoName
+                        = System.getenv( "MONGO_NAME" );
+                String mongoUser
+                        = System.getenv( "MONGO_INITDB_ROOT_USERNAME" );
+                String mongoPass
+                        = System.getenv( "MONGO_INITDB_ROOT_PASSWORD" );
                 MongoClientSettings.Builder settingsBuilder
                         = MongoClientSettings.builder();
-                MongoClient mongoClient;
-                if ( mongoName.isEmpty() ) {
+                if ( isNullOrBlank( mongoName ) ) {
                     logger.info( "MONGO_NAME was not set" );
                     settingsBuilder.applyToClusterSettings( builder -> {
                         builder.hosts( List.of( new ServerAddress() ) );
                     } );
                 } else {
                     settingsBuilder.applyToClusterSettings( builder -> {
-                        builder.hosts( List.of( new ServerAddress( mongoName.get() ) ) );
+                        builder.hosts( List.of( new ServerAddress( mongoName ) ) );
                     } );
                 }
-                if ( mongoUser.isPresent() && mongoPass.isPresent() ) {
+                if ( !isNullOrBlank( mongoUser ) && !isNullOrBlank( mongoPass ) ) {
                     MongoCredential credentials
-                            = MongoCredential.createCredential( mongoUser.get(),
+                            = MongoCredential.createCredential( mongoUser,
                                                                 "admin",
-                                                                mongoPass.get()
-                                                                         .toCharArray() );
+                                                                mongoPass
+                                                                        .toCharArray() );
                     settingsBuilder.credential( credentials );
                 }
-                mongoClient = MongoClients.create( settingsBuilder.build() );
+                MongoClient mongoClient
+                        = MongoClients.create( settingsBuilder.build() );
                 Datastore datastore = Morphia.createDatastore( mongoClient,
                                                                "bot-app" );
                 Mapper mapper = datastore.getMapper();

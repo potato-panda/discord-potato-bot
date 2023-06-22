@@ -1,11 +1,11 @@
-package app.potato.bot.services;
+package app.potato.bot.utils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
 
-public
+public final
 class RateLimiter {
 
     private static final Logger                   logger
@@ -14,11 +14,11 @@ class RateLimiter {
     private final        long                     refillPeriodMillis;
     private final        Semaphore                tokens;
     private final        ScheduledExecutorService executorService;
-    private final        ScheduledFuture<?>       resupplyTask;
+    private              ScheduledFuture<?>       resupplyTask;
 
     public
     RateLimiter( int capacity,
-                 int refillPeriodMillis ) throws InterruptedException
+                 int refillPeriodMillis )
     {
         this.capacity           = capacity;
         this.refillPeriodMillis = refillPeriodMillis;
@@ -29,23 +29,42 @@ class RateLimiter {
 
     private
     ScheduledFuture<?> resupplyTokens() {
-        return executorService.scheduleAtFixedRate( () -> {
-                                                        int tokensToRefill = capacity - tokens.availablePermits();
-
-                                                        tokens.release( tokensToRefill );
-                                                    },
+        return executorService.scheduleAtFixedRate( this::refillingTask,
                                                     0,
                                                     refillPeriodMillis,
                                                     TimeUnit.MILLISECONDS );
+    }
+
+    private
+    void refillingTask() {
+        int tokensToRefill = capacity - tokens.availablePermits();
+
+        tokens.release( tokensToRefill );
     }
 
     public
     void acquire() throws InterruptedException {
         while ( !this.tokens.tryAcquire() ) {
             Thread.sleep( 100 );
+            this.tokens.acquire();
         }
-        this.tokens.acquire();
+//        acquire( 1 );
     }
+
+//    public
+//    void acquire( int requests ) throws InterruptedException {
+//        if ( requests < 1 ) {
+//            requests = 1;
+//        }
+//        if ( tokens.tryAcquire( requests ) ) {
+//            resupplyTask.cancel( false );
+//            tokens.acquire( requests );
+//            resupplyTask = resupplyTokens();
+//        } else {
+//            Thread.sleep( 100 );
+//            acquire( requests );
+//        }
+//    }
 
     public
     void stop() {

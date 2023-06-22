@@ -1,26 +1,20 @@
-import { inject, injectable } from 'inversify';
 import { Msg, StringCodec } from 'nats';
-import { error, log } from 'node:console';
-import { inspect } from 'node:util';
+import { error } from 'node:console';
 import { TwitterService } from '../services/TwitterService';
 import { safeStringify } from '../utils/String';
-import { BaseListener, BaseListenerEvent } from './Listener';
-import { TwitterPost } from './TwitterPostRequest';
+import { Listener, ListenerEvent } from './Listener';
 import ListenerSubjects from './ListenerSubjects';
+import { TwitterPost } from './TwitterPostRequest';
 
-export interface TwitterPostRequestEvent extends BaseListenerEvent {
+export interface TwitterPostRequestEvent extends ListenerEvent {
   data: TwitterPost.Request;
 }
 
-@injectable()
-export class TwitterPostRequestListener extends BaseListener<TwitterPostRequestEvent> {
-  subject = ListenerSubjects.TwitterPostRequest;
-
+export class TwitterPostRequestListener extends Listener<TwitterPostRequestEvent> {
   constructor(
-    @inject(TwitterService)
     private service: TwitterService,
   ) {
-    super();
+    super(ListenerSubjects.TwitterPostRequest);
   }
 
   async onMessage(msg: Msg, data: TwitterPost.Request) {
@@ -36,14 +30,14 @@ export class TwitterPostRequestListener extends BaseListener<TwitterPostRequestE
           screen_name,
           url,
           profile_image_url_https,
+          profile_link_color,
         },
         retweet_count,
         favorite_count,
         possibly_sensitive,
         created_at,
-        quote_count,
         reply_count,
-      } = await this.service.getOneTweet(data.url);
+      } = await this.service.getTweet(data.url);
 
       const reply: TwitterPost.Reply = {
         metadata: {
@@ -56,14 +50,13 @@ export class TwitterPostRequestListener extends BaseListener<TwitterPostRequestE
           favourites: favorite_count,
           suggestive: possibly_sensitive ?? false,
           createdAt: created_at,
+          embedColour: profile_link_color
         },
         downloadResponses: await this.service.downloadMedia(
           postId,
           extended_entities,
         ),
       };
-
-      log('Response: ', inspect(reply, false, null, true));
 
       msg.respond(sc.encode(safeStringify(reply)));
     } catch (err) {

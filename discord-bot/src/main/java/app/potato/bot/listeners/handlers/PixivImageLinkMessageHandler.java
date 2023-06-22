@@ -1,6 +1,7 @@
 package app.potato.bot.listeners.handlers;
 
-import app.potato.bot.services.ContentModeratedService.ModeratedContent;
+import app.potato.bot.clients.ContentModerationServiceClient.ModeratedContent;
+import app.potato.bot.clients.PixivPostLinkServiceMessageClientRequestOptions;
 import app.potato.bot.utils.Disabled;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -13,25 +14,23 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Formatter;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHandler;
-import static app.potato.bot.services.PixivService.PixivServiceResult;
-import static app.potato.bot.services.PixivService.requestPost;
-import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
+import static app.potato.bot.clients.PixivServiceMessageClient.PixivServiceResult;
+import static app.potato.bot.clients.PixivServiceMessageClient.requestPost;
+import static app.potato.bot.utils.MessageUtil.getSanitizedMessageTextContent;
 
 @Disabled
-@MessageHandler
 public final
-class PixivImageLinkMessageHandler extends AbstractMessageHandler {
+class PixivImageLinkMessageHandler extends MessageHandler {
 
     private static final Logger logger
             = LoggerFactory.getLogger( PixivImageLinkMessageHandler.class );
 
+    public
     PixivImageLinkMessageHandler() {
         super( "i.pximg.net" );
     }
@@ -43,7 +42,7 @@ class PixivImageLinkMessageHandler extends AbstractMessageHandler {
     {
         // suppress initial embeds
         event.getMessage().suppressEmbeds( true ).queue();
-        String string = getSanitizedContent( event );
+        String string = getSanitizedMessageTextContent( event );
         // TODO Split link url and optional flags
         String[] splits = string.split( "\\s+" );
 
@@ -85,30 +84,27 @@ class PixivImageLinkMessageHandler extends AbstractMessageHandler {
 
         // TODO foreach id, make request (Generally there will only be one link)
         for ( String id : ids ) {
-            PixivPostLinkOptions pixivPostLinkOptions
-                    = new PixivPostLinkOptions( id );
+            PixivPostLinkServiceMessageClientRequestOptions requestOptions
+                    = new PixivPostLinkServiceMessageClientRequestOptions();
+            requestOptions.setPostId( id );
 
-            PixivPostLinkRequest request
-                    = new PixivPostLinkRequest( pixivPostLinkOptions.postId,
-                                                pixivPostLinkOptions.quality );
 
             // TODO receive data, make post
             PixivServiceResult serviceResults = requestPost( event,
-                                                             request );
+                                                             requestOptions );
 
             ArrayList<ModeratedContent> moderatedFile
                     = serviceResults.moderatedContents();
 
             List<FileUpload> uploadFiles = moderatedFile.stream()
-                                                        .map( pixivModeratedFile -> FileUpload.fromData( pixivModeratedFile.imageData(),
-                                                                                                         pixivModeratedFile.metadata()
-                                                                                                                           .fileName() ) )
+                                                        .map( moderatedContent -> FileUpload.fromData( moderatedContent.data(),
+                                                                                                       moderatedContent.metadata()
+                                                                                                                       .fileName() ) )
                                                         .collect( Collectors.toList() );
 
             EmbedBuilder embedBuilder = new EmbedBuilder();
-            embedBuilder.setTitle( new Formatter().format( "{} images",
-                                                           uploadFiles.size() )
-                                                  .toString() );
+            embedBuilder.setTitle( String.format( "%s images",
+                                                  uploadFiles.size() ) );
             MessageEmbed embed = embedBuilder.build();
 
             event.getMessage()

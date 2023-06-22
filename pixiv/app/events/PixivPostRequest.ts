@@ -7,7 +7,7 @@ export namespace PixivPost {
   }
   
   export interface Metadata {
-    adult: boolean;
+    explicit: boolean;
     tags: string[];
     url: string;
     title: string;

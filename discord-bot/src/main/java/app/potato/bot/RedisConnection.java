@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisPooled;
 
-import java.util.Optional;
+import static app.potato.bot.utils.StringUtil.isNullOrBlank;
 
 public
 class RedisConnection {
@@ -20,11 +20,13 @@ class RedisConnection {
     {
         if ( _connection == null ) {
             try {
-                Optional<String> redisName
-                        = Optional.ofNullable( System.getenv( "REDIS_NAME" ) );
-                _connection = redisName.map( s -> new JedisPooled( s,
-                                                                   6379 ) )
-                                       .orElseGet( JedisPooled::new );
+                String redisName
+                        = System.getenv( "REDIS_NAME" );
+
+                _connection = !isNullOrBlank( redisName )
+                              ? new JedisPooled( redisName,
+                                                 6379 )
+                              : new JedisPooled();
                 logger.info( "Redis Connected" );
             }
             catch ( Exception e ) {

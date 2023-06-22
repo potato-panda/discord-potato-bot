@@ -1,4 +1,4 @@
-package app.potato.bot.services;
+package app.potato.bot.utils;
 
 import java.util.Optional;
 

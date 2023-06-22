@@ -6,7 +6,7 @@ import io.nats.client.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import static app.potato.bot.utils.StringUtil.isNullOrBlank;
 
 public
 class NatsConnection {
@@ -22,21 +22,21 @@ class NatsConnection {
     {
         if ( _connection == null ) {
             try {
-                Optional<String> natsName
-                        = Optional.ofNullable( System.getenv( "NATS_NAME" ) );
-                Optional<String> natsUser
-                        = Optional.ofNullable( System.getenv( "NATS_USER" ) );
-                Optional<String> natsPass
-                        = Optional.ofNullable( System.getenv( "NATS_PASS" ) );
+                String natsName
+                        = System.getenv( "NATS_NAME" );
+                String natsUser
+                        = System.getenv( "NATS_USER" );
+                String natsPass
+                        = System.getenv( "NATS_PASS" );
                 Options.Builder optionsBuilder = new Options.Builder();
-                if ( natsName.isEmpty() ) {
+                if ( isNullOrBlank( natsName ) ) {
                     logger.info( "NATS_NAME was not set" );
                 } else {
-                    optionsBuilder.server( "nats://" + natsName.get() + ":4222" );
+                    optionsBuilder.server( "nats://" + natsName + ":4222" );
                 }
-                if ( natsUser.isPresent() && natsPass.isPresent() ) {
-                    optionsBuilder.userInfo( natsUser.get(),
-                                             natsPass.get() );
+                if ( !isNullOrBlank( natsUser ) && !isNullOrBlank( natsPass ) ) {
+                    optionsBuilder.userInfo( natsUser,
+                                             natsPass );
                 }
                 _connection = Nats.connect( optionsBuilder.build() );
                 logger.info( "NATS Connected" );

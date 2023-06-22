@@ -1,20 +1,17 @@
-import { inject, injectable, named } from 'inversify';
 import { Msg, StringCodec } from 'nats';
 import { PixivService } from '../services/PixivService';
-import { BaseListener, BaseListenerEvent } from './Listener';
+import { Listener, ListenerEvent } from './Listener';
 import ListenerSubjects from './ListenerSubjects';
 
-interface PixivImageRequestEvent extends BaseListenerEvent {
+interface PixivImageRequestEvent extends ListenerEvent {
   data: {
     url: string;
   };
 }
 
-@injectable()
-export class PixivImageRequestListener extends BaseListener<PixivImageRequestEvent> {
+export class PixivImageRequestListener extends Listener<PixivImageRequestEvent> {
   subject = ListenerSubjects.PixivImageRequest;
   constructor(
-    @inject(PixivService) @named('pixiv')
     private service: PixivService,
   ) {
     super();

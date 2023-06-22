@@ -1,4 +1,4 @@
-import { FileDownload } from '../services/DownloadService';
+import { FileDownload } from '../utils/download';
 
 export namespace TwitterPost {
   export interface Request {
@@ -15,6 +15,7 @@ export namespace TwitterPost {
     favourites: number;
     suggestive: boolean;
     createdAt: string;
+    embedColour: string;
   }
 
   export type FileDownloadResponse = Omit<

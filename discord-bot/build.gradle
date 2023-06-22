@@ -29,9 +29,6 @@ dependencies {
     // https://mvnrepository.com/artifact/org.reflections/reflections
     implementation group: 'org.reflections', name: 'reflections', version: '0.10.2'
 
-    // https://mvnrepository.com/artifact/com.thedeanda/lorem
-    implementation group: 'com.thedeanda', name: 'lorem', version: '2.1'
-
     // https://mvnrepository.com/artifact/redis.clients/jedis
     implementation group: 'redis.clients', name: 'jedis', version: '4.3.1'
 
@@ -45,6 +42,11 @@ dependencies {
 
     implementation 'dev.morphia.morphia:morphia-core:2.3.0'
 
+    implementation platform('software.amazon.awssdk:bom:2.20.56')
+
+    implementation 'software.amazon.awssdk:sso'
+
+    implementation 'software.amazon.awssdk:rekognition'
 }
 
 compileJava.options.encoding = 'UTF-8'

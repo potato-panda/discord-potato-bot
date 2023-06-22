@@ -1,5 +1,8 @@
 package app.potato.bot.listeners.handlers;
 
+import app.potato.bot.clients.ContentModerationServiceClient;
+import app.potato.bot.clients.PixivPostLinkServiceMessageClientRequestOptions;
+import app.potato.bot.clients.PixivPostLinkServiceMessageClientRequestOptions.OptionFlag;
 import app.potato.bot.utils.ExtendedFileUpload;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
@@ -13,22 +16,20 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static app.potato.bot.listeners.handlers.MessageHandler.AbstractMessageHandler;
-import static app.potato.bot.listeners.handlers.PixivPostLinkRequest.ImageRequestQuality;
-import static app.potato.bot.services.PixivService.*;
-import static app.potato.bot.services.PixivService.PixivPostLinkRequestReply.PixivPostMetadata;
-import static app.potato.bot.utils.MessageUtil.getSanitizedContent;
+import static app.potato.bot.clients.PixivPostLinkServiceMessageClientRequestOptions.ImageRequestQuality;
+import static app.potato.bot.clients.PixivServiceMessageClient.PixivPostLinkRequestReply.PixivPostMetadata;
+import static app.potato.bot.clients.PixivServiceMessageClient.PixivServiceResult;
+import static app.potato.bot.clients.PixivServiceMessageClient.requestPost;
+import static app.potato.bot.utils.MessageUtil.getSanitizedMessageTextContent;
 
-@MessageHandler
 public final
-class PixivPostLinkMessageHandler extends AbstractMessageHandler {
+class PixivPostLinkMessageHandler extends MessageHandler {
 
     private static final Logger logger
             = LoggerFactory.getLogger( PixivPostLinkMessageHandler.class );
@@ -43,84 +44,87 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
     void handle( MessageReceivedEvent event )
     throws IOException, InterruptedException
     {
-        logger.info( "Handled by PixivPostLinkMessageHandler" );
-        // suppress initial embeds
         Message targetMessage = event.getMessage();
+        logger.info( "Handled by PixivPostLinkMessageHandler. Raw: {}",
+                     targetMessage.getContentRaw() );
+
+        event.getChannel().asGuildMessageChannel().sendTyping().queue();
 
         targetMessage.suppressEmbeds( true ).queue();
 
-        String string = getSanitizedContent( event );
+        String string = getSanitizedMessageTextContent( event );
+
         // TODO Split link url and optional flags
         ArrayList<String> splits
                 = Arrays.stream( string.split( "\\s(?=\\S*https://)" ) )
                         .collect( Collectors.toCollection( ArrayList::new ) );
 
-        ArrayList<PixivPostLinkOptions> options
-                = buildPixivPostLinkOptions( splits );
+        ArrayList<PixivPostLinkServiceMessageClientRequestOptions> items
+                = buildPixivPostLinkServiceOptions( splits );
 
-        for ( PixivPostLinkOptions option : options ) {
-
-            PixivPostLinkRequest request
-                    = new PixivPostLinkRequest( option.postId,
-                                                option.quality );
+        for ( PixivPostLinkServiceMessageClientRequestOptions options : items ) {
 
             PixivServiceResult pixivServiceResult = requestPost( event,
-                                                                 request );
+                                                                 options );
 
-            ArrayList<ModeratedContent> moderatedContents
+            if ( pixivServiceResult == null ) {
+                logger.info( "Did not receive a response" );
+                continue;
+            } else {
+                logger.info( "Message received: {}",
+                             pixivServiceResult );
+            }
+
+            ArrayList<ContentModerationServiceClient.ModeratedContent>
+                    moderatedContents
                     = pixivServiceResult.moderatedContents();
 
             ArrayList<ExtendedFileUpload> filesToUpload
-                    = moderatedContents.stream()
-                                       .map( moderatedContent -> {
-                                           FileUpload
-                                                   fileUpload
-                                                   = FileUpload.fromData( moderatedContent.imageData(),
-                                                                          moderatedContent.metadata()
-                                                                                          .getFileNameWithExtension() );
+                    = moderatedContents
+                    .stream()
+                    .map( moderatedContent -> {
+                        FileUpload
+                                fileUpload
+                                = FileUpload.fromData( moderatedContent.data(),
+                                                       moderatedContent.metadata()
+                                                                       .getFileNameWithExtension() );
 
-                                           if ( moderatedContent.moderationData()
-                                                                .isNsfw()
-                                                   || ( moderatedContent.moderationData()
-                                                                        .contentModerationResponse()
-                                                                        .isPresent()
-                                                   && moderatedContent.moderationData()
-                                                                      .contentModerationResponse()
-                                                                      .get()
-                                                                      .result()
-                                                                      .isPresent()
-                                                   && moderatedContent.moderationData()
-                                                                      .contentModerationResponse()
-                                                                      .get()
-                                                                      .result()
-                                                                      .get() ) )
-                                               return new ExtendedFileUpload( moderatedContent.metadata(),
-                                                                              fileUpload.asSpoiler() );
+                        if ( moderatedContent.moderationData()
+                                             .isExplicit()
+                                ||
+                                moderatedContent.moderationData()
+                                                .contentModerationResponses()
+                                        != null )
+                        {
+                            return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                           fileUpload.asSpoiler() );
+                        }
 
-                                           return new ExtendedFileUpload( moderatedContent.metadata(),
-                                                                          fileUpload );
-                                       } )
-                                       .collect( Collectors.toCollection( ArrayList::new ) );
+                        return new ExtendedFileUpload( moderatedContent.metadata(),
+                                                       fileUpload );
+                    } )
+                    .collect( Collectors.toCollection( ArrayList::new ) );
 
             PixivPostMetadata metadata = pixivServiceResult.metadata();
 
             EmbedBuilder embedBuilder
-                    = new EmbedBuilder().setColor( Color.decode( "#1da0f2" ) )
-                                        .setTitle( metadata.title(),
-                                                   metadata.url() )
-                                        .setAuthor( metadata.userName() )
-                                        .setDescription( metadata.description() )
+                    = new EmbedBuilder()
+                    .setColor( Color.decode( "#1da0f2" ) )
+                    .setTitle( metadata.title(),
+                               metadata.url() )
+                    .setAuthor( metadata.userName() )
+                    .setDescription( metadata.description() )
 //                                        .addField( "Tags",
 //                                                   String.join( ", ",
 //                                                                metadata.tags()
 //                                                                        .toArray( value -> new String[]{} ) ),
 //                                                   false )
-                                        .addField( "Favourites",
-                                                   String.valueOf( metadata.favourites() ),
-                                                   true )
-                                        .setFooter( "Pixiv" )
-                                        .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
-                                                                    .toInstant() );
+                    .addField( "Favourites",
+                               String.valueOf( metadata.favourites() ),
+                               true )
+                    .setFooter( "Pixiv" )
+                    .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
+                                                .toInstant() );
 
 
             MessageEmbed embed = embedBuilder.build();
@@ -133,13 +137,17 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
 
             ArrayList<Integer> pagesToSend = new ArrayList<>();
             for ( int i = 0; i < filesToUpload.size(); i++ ) {
-                if ( option.pick && option.selectPages.contains( i + 1 ) ) {
+                if ( options.getOmit() && options.getSelection()
+                                                 .contains( i + 1 ) )
+                {
                     if ( filesToUpload.get( i ) != null ) {
                         pagesToSend.add( i );
                     }
                 }
                 // Add page if not omitted {1}
-                else if ( !option.pick && !option.selectPages.contains( i + 1 ) ) {
+                else if ( !options.getOmit() && !options.getSelection()
+                                                        .contains( i + 1 ) )
+                {
                     if ( filesToUpload.get( i ) != null ) {
                         pagesToSend.add( i );
                     }
@@ -150,16 +158,17 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
             int count      = 0;
 
             // Send images
-            if ( option.selectPages.size() > 0 ) {
+            if ( options.getSelection().size() > 0 ) {
                 int selectCount = pagesToSend.size();
                 for ( Integer idx : pagesToSend ) {
                     ExtendedFileUpload fileUpload = filesToUpload.get( idx );
                     if ( filesToUpload.get( idx ) != null ) {
 
-                        String imageString = String.format( "%s/%s (of %s)",
-                                                            ++count,
-                                                            selectCount,
-                                                            imageCount );
+                        String imageString = String
+                                .format( "%s/%s (of %s)",
+                                         ++count,
+                                         selectCount,
+                                         imageCount );
                         if ( fileUpload.metadata().size() > 25_000_000 )
                             targetMessage.reply( imageString.concat( " Attachment exceeds Max upload limit" ) )
                                          .mentionRepliedUser( false )
@@ -195,128 +204,133 @@ class PixivPostLinkMessageHandler extends AbstractMessageHandler {
     }
 
     private
-    ArrayList<PixivPostLinkOptions> buildPixivPostLinkOptions( ArrayList<String> splits ) {
-        return splits.stream()
-                     .reduce( new ArrayList<PixivPostLinkOptions>() {},
-                              ( pixivPostLinkRequests, string ) -> {
-                                  try {
-                                      ArrayList<String> msgOptsSegment
-                                              = Arrays.stream( string.split( "([ ,])+" ) )
-                                                      .collect( Collectors.toCollection( ArrayList::new ) );
-                                      String url = msgOptsSegment.get( 0 );
+    ArrayList<PixivPostLinkServiceMessageClientRequestOptions> buildPixivPostLinkServiceOptions( ArrayList<String> splits ) {
 
-                                      // Get post URL
-                                      URI uri = new URI( url );
-                                      // Remove url array
-                                      msgOptsSegment.remove( 0 );
+        return splits
+                .stream()
+                .reduce( new ArrayList<PixivPostLinkServiceMessageClientRequestOptions>() {},
+                         ( pixivPostLinkRequests, messageTextContent ) -> {
+                             try {
+                                 ArrayList<String> tokens
+                                         = new ArrayList<>( Arrays.stream( messageTextContent.split( "([ ,])+" ) )
+                                                                  .toList() );
+                                 String url = tokens.get( 0 );
 
-                                      // Default quality
-                                      ImageRequestQuality quality
-                                              = ImageRequestQuality.REGULAR;
-                                      // Default pick
-                                      boolean pick = true;
-                                      // Select pages
-                                      ArrayList<Integer> selectPages
-                                              = new ArrayList<>() {};
+                                 // Get post URL
+                                 URI uri = new URI( url );
+                                 // Remove url array
+                                 tokens.remove( 0 );
 
-                                      ArrayList<String> flagOptions
-                                              = new ArrayList<>( List.of( new String[]{
-                                              "-p", "-o", "-q"
-                                      } ) );
+                                 PixivPostLinkServiceMessageClientRequestOptions
+                                         requestOptions
+                                         = new PixivPostLinkServiceMessageClientRequestOptions();
 
-                                      // read option flags and values
-                                      String optionFlag = "";
-                                      for ( String optionKey : msgOptsSegment ) {
+                                 if ( uri.getHost()
+                                         .contains( this.key ) )
+                                 {
+                                     String path = uri.getPath();
+                                     Pattern pattern
+                                             = Pattern.compile( "^(/\\w+)?/artworks/(?<postId>\\d+)(.*)?$" );
+                                     Matcher matcher
+                                             = pattern.matcher( path );
 
-                                          // If next is flag, set as current flag, and remove flag from next flags to check
-                                          if ( flagOptions.contains( optionKey ) ) {
-                                              optionFlag = optionKey;
-                                          }
-                                          // If current flag then get values
-                                          else {
-                                              String optVal = optionKey.trim();
+                                     if ( matcher.matches() ) {
+                                         String postId
+                                                 = matcher.group( "postId" );
 
-                                              switch ( optionFlag ) {
-                                                  case "-o", "-p" -> {
-                                                      if ( optionFlag.matches( "-o" ) ) {
-                                                          pick = false;
-                                                      }
-                                                      // if value matches a range
-                                                      if ( optVal.matches( "\\d+(-)?(\\d+)?" ) ) {
-                                                          List<String> range
-                                                                  = Arrays.stream( optVal.split( "-" ) )
-                                                                          .limit( 2 )
-                                                                          .toList();
-                                                          for ( String r : range ) {
-                                                              if ( !r.isEmpty() ) {
-                                                                  selectPages.add( Integer.parseInt( r ) );
-                                                              }
-                                                          }
-                                                      }
-                                                      flagOptions.removeAll( List.of( new String[]{
-                                                              "-o", "-p"
-                                                      } ) );
-                                                  }
-                                                  case "-q" -> {
-                                                      switch ( optVal ) {
-                                                          case "rg", "regular" ->
-                                                          {
-                                                              quality
-                                                                      = ImageRequestQuality.REGULAR;
-                                                          }
-                                                          case "og", "original" ->
-                                                          {
-                                                              quality
-                                                                      = ImageRequestQuality.ORIGINAL;
-                                                          }
-                                                          default -> {
-                                                          }
-                                                      }
-                                                      flagOptions.remove( "-q" );
-                                                      optionFlag = "";
-                                                  }
-                                                  default -> {
-                                                  }
-                                              }
-                                          }
-                                      }
+                                         requestOptions.setPostId( postId );
 
-                                      if ( uri.getHost()
-                                              .contains( this.key ) )
-                                      {
-                                          String path = uri.getPath();
-                                          Pattern pattern
-                                                  = Pattern.compile( "^/en/artworks/(?<postId>\\d+)(.*)?$" );
-                                          Matcher matcher
-                                                  = pattern.matcher( path );
+                                     } else {
+                                         logger.info( "Bad post link; Invalid post ID. Link: {}",
+                                                      uri );
+                                         return null;
+                                     }
+                                 }
 
-                                          if ( matcher.matches() ) {
-                                              String postId
-                                                      = matcher.group( "postId" );
+                                 TreeSet<Integer> selectPages
+                                         = new TreeSet<>() {};
 
-                                              PixivPostLinkOptions
-                                                      pixivPostLinkOptions
-                                                      = new PixivPostLinkOptions( postId,
-                                                                                  quality,
-                                                                                  pick,
-                                                                                  selectPages );
+                                 HashSet<OptionFlag> flagOptions
+                                         = OptionFlag.OPTION_FLAGS;
 
-                                              pixivPostLinkRequests.add( pixivPostLinkOptions );
-                                          }
-                                      }
-                                      return pixivPostLinkRequests;
-                                  }
-                                  catch ( Exception e ) {
-                                      logger.info( "What happened? {}",
-                                                   e.getMessage() );
-                                      return pixivPostLinkRequests;
-                                  }
+                                 // read option flags and values
+                                 OptionFlag currentOptionFlag = null;
+                                 for ( String s : tokens ) {
+                                     String token = s.trim();
+                                     // If token is a flag, set flag
+                                     OptionFlag flag
+                                             = OptionFlag.keyOf( token );
+                                     if ( flag != null ) {
+                                         currentOptionFlag = flag;
+                                     }
+                                     // If current flag then get values
+                                     else if ( currentOptionFlag != null ) {
+                                         switch ( currentOptionFlag ) {
+                                             case OMIT, PICK -> {
+                                                 if ( requestOptions.getOmit() == null ) {
+                                                     requestOptions.setOmit( currentOptionFlag == OptionFlag.OMIT );
+                                                     flagOptions.removeAll( List.of( OptionFlag.OMIT,
+                                                                                     OptionFlag.PICK ) );
+                                                 }
+                                                 // If token is a digit or is a range of digits
+                                                 if ( token.matches( "\\d+(-)?(\\d+)?" ) ) {
+                                                     try {
+                                                         String[] range
+                                                                 = token.split( "-" );
+                                                         int rangeStart
+                                                                 = Integer.parseInt( range[0] );
+                                                         if ( rangeStart > 0 ) {
+                                                             selectPages.add( rangeStart );
+                                                         }
+                                                         int rangeEnd
+                                                                 = Integer.parseInt( range[1] );
+                                                         if ( rangeEnd >= rangeStart ) {
+                                                             for ( int i
+                                                                   = rangeStart + 1; i <= rangeEnd; i++ )
+                                                             {
+                                                                 selectPages.add( i );
+                                                             }
+                                                         }
+                                                     }
+                                                     catch ( NumberFormatException | ArrayIndexOutOfBoundsException ignored ) {
+                                                     }
+                                                 }
+                                             }
+                                             case QUALITY -> {
+                                                 switch ( token ) {
+                                                     case "og", "0", "original" -> requestOptions.setQuality( ImageRequestQuality.ORIGINAL );
+                                                     case "rg", "1", "regular" -> requestOptions.setQuality( ImageRequestQuality.REGULAR );
+                                                     default -> {
+                                                     }
+                                                 }
+                                                 flagOptions.remove( OptionFlag.QUALITY );
+                                                 currentOptionFlag = null;
+                                             }
+                                             default -> {
+                                             }
+                                         }
+                                     }
+                                 }
 
-                              },
-                              ( pixivPostLinkRequests, pixivPostLinkRequests2 ) -> {
-                                  pixivPostLinkRequests.addAll( pixivPostLinkRequests2 );
-                                  return pixivPostLinkRequests;
-                              } );
+                                 requestOptions.setSelection( selectPages );
+
+                                 logger.info( "Options: {}",
+                                              requestOptions );
+
+                                 pixivPostLinkRequests.add( requestOptions );
+                                 return pixivPostLinkRequests;
+                             }
+                             catch ( Exception e ) {
+                                 logger.info( "What happened? {}",
+                                              e.getMessage() );
+                                 return pixivPostLinkRequests;
+                             }
+
+                         },
+                         ( pixivPostLinkRequests, pixivPostLinkRequests2 ) -> {
+                             pixivPostLinkRequests.addAll( pixivPostLinkRequests2 );
+                             return pixivPostLinkRequests;
+                         } );
     }
 
 }

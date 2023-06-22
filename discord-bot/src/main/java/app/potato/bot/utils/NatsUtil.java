@@ -8,7 +8,7 @@ import io.nats.client.Message;
 
 import java.io.IOException;
 
-public
+public final
 class NatsUtil {
     public static
     byte[] getObjectBytes( Object o ) throws JsonProcessingException

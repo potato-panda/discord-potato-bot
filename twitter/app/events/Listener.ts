@@ -1,19 +1,15 @@
 import { log } from 'node:console';
-import { injectable } from 'inversify';
 import { Msg, NatsConnection, StringCodec } from 'nats';
 
-export interface BaseListenerEvent {
-  subject: string;
+export interface ListenerEvent {
   data: unknown;
 }
 
-@injectable()
-export abstract class BaseListener<T extends BaseListenerEvent, D = T['data']> {
-  abstract subject: string;
-  abstract onMessage(msg: Msg, data: D): Promise<void>;
+export abstract class Listener<T extends ListenerEvent> {
+  constructor(public readonly subject: string) { }
+  protected abstract onMessage(msg: Msg, data: T['data']): Promise<void>;
 
   public listen(nats: NatsConnection) {
-    log('Listening subject: ', this.subject);
     nats.subscribe(this.subject, {
       callback: (err, msg) => {
         const sc = StringCodec();
@@ -22,15 +18,16 @@ export abstract class BaseListener<T extends BaseListenerEvent, D = T['data']> {
           log('Request error:', err);
         } else {
           try {
-            const data = JSON.parse(sc.decode(msg.data)) as D;
+            const data = msg.json() as T['data'];
             log('Request received:', data);
             this.onMessage(msg, data);
           } catch (err) {
+            log('Request Error:', err);
             msg.respond(sc.encode(`Request Error: ${err}`));
-            log('Data error:', err);
           }
         }
       },
     });
+    log('Listening subject: ', this.subject);
   }
 }

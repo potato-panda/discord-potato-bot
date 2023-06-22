@@ -1,16 +1,21 @@
-import { inject, injectable } from 'inversify';
-import { Illust, PixivApiClient, Utils } from 'pixiv-api-wrapper';
+import { Illust, PixivApi, Utils } from 'pixiv-api-wrapper';
 import { PixivPost } from '../events/PixivPostRequest';
 import { PixivPostRequestReplyModel } from '../models/PixivPostRequestReply';
-import os from 'node:os';
-import uploadStream from '../utils/uploadStream';
+import { uploadStream } from '../utils/uploadStream';
 
-@injectable()
 export class PixivService {
-  downloadKey = 'pixiv:illust';
   public constructor(
-    @inject(PixivApiClient) protected client: PixivApiClient,
-  ) { }
+    protected client: PixivApi,
+  ) {
+    const { expiresIn } = this.client.Auth.getAuthentication();
+    setTimeout(() => this.refreshAuth, expiresIn - (10 * 60 * 1_000));
+  }
+
+  async refreshAuth() {
+    await this.client.Auth.refreshAuth();
+    const { expiresIn } = this.client.Auth.getAuthentication();
+    setTimeout(() => this.refreshAuth, expiresIn - (10 * 60 * 1_000));
+  }
 
   async getIllust(illustId: string) {
     const illustMetadata = await this.client.Illust.detail(illustId);
@@ -21,7 +26,10 @@ export class PixivService {
         tags,
         title,
         caption: description,
-        user: { name: userName, account: userAccount },
+        user: {
+          name: userName,
+          account: userAccount
+        },
         illustAiType: aiType,
         totalBookmarks: favourites,
         createDate: createdAt,
@@ -29,9 +37,10 @@ export class PixivService {
       },
     } = illustMetadata;
 
+
     return {
       metadata: {
-        adult: !!xRestrict,
+        explicit: Boolean(xRestrict),
         tags: tags.map((tag) => tag.name),
         url: `https://www.pixiv.net/artworks/${illustId}`,
         title,
@@ -94,7 +103,7 @@ export class PixivService {
     ugoiraId: string,
   ): Promise<PixivPost.FileDownloadResponse[]> {
     const ugoiraMetadata = await this.client.Ugoira.metadata(ugoiraId);
-    const { metadata, data } = await Utils.downloadUgoira(ugoiraMetadata, { threads: os.cpus().length });
+    const { metadata, data } = await Utils.downloadUgoira(ugoiraMetadata);
 
     const key = metadata.fileName;
 

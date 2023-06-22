@@ -7,7 +7,7 @@ import org.bson.types.ObjectId;
 import java.util.Date;
 
 @Entity( "PixivPostRequests" )
-public
+public final
 class PixivPostRequest {
     @Id private ObjectId id;
     private     String   postId;

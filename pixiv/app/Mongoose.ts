@@ -1,5 +1,5 @@
-import { error, log } from 'node:console';
 import mongoose from 'mongoose';
+import { error, log } from 'node:console';
 
 async function connectMongo() {
   const c = mongoose
@@ -17,8 +17,9 @@ async function connectMongo() {
     error(`Mongo connection error : ${err?.message || err}`);
   });
   const conn = await c;
-  const { mongo } = (await c);
-  const bucket = new mongo.GridFSBucket(conn.connection.db, { chunkSizeBytes: 1048576, });
+  const bucket = new conn.mongo.GridFSBucket(conn.connection.db, {
+    chunkSizeBytes: 1048576,
+  });
   return bucket;
 }
 

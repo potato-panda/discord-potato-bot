@@ -6,11 +6,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import static app.potato.bot.listeners.Listener.AbstractListener;
-
-@Listener
 public
-class ReadyListener extends AbstractListener {
+class ReadyListener extends Listener {
     private static final Logger logger
             = LoggerFactory.getLogger( ReadyListener.class );
 
