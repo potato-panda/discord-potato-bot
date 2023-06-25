@@ -53,7 +53,7 @@ class TwitterPostLinkMessageHandler extends MessageHandler {
 
         String string = getSanitizedMessageTextContent( event );
 
-        String regex = "https://([vf]x)?twitter.com/\\w+/status/\\d+";
+        String regex = "https://twitter.com/\\w+/status/(?<id>\\d+)(\\?.*)?";
 
         // TODO Split link url and optional flags
         ArrayList<String> links

@@ -66,92 +66,88 @@ class TwitterServiceMessageClient {
                 = twitterPostLinkRequestReply.metadata();
 
         ArrayList<ModeratedContent> moderatedContents
-                =
-                downloadResponses
-                        .stream()
-                        .reduce( new ArrayList<>(),
-                                 ( twitterServiceResults, fileDownloadResponse ) -> {
-                                     if ( fileDownloadResponse.success() && fileDownloadResponse.metadata()
-                                                                                                .isPresent() )
-                                     {
-                                         try {
-                                             FileDownloadMetadata
-                                                     fileDownloadMetadata
-                                                     = fileDownloadResponse.metadata()
-                                                                           .get();
+                = downloadResponses.stream()
+                                   .reduce( new ArrayList<>(),
+                                            ( twitterServiceResults, fileDownloadResponse ) -> {
+                                                if ( fileDownloadResponse.success() && fileDownloadResponse.metadata()
+                                                                                                           .isPresent() )
+                                                {
+                                                    try {
+                                                        FileDownloadMetadata
+                                                                fileDownloadMetadata
+                                                                = fileDownloadResponse.metadata()
+                                                                                      .get();
 
-                                             MongoCollection<TwitterPostRequest>
-                                                     collection
-                                                     = MongoDBConnection.instance()
-                                                                        .getDatabase()
-                                                                        .getCollection( "TwitterPostRequests",
-                                                                                        TwitterPostRequest.class );
-                                             TwitterPostRequest
-                                                     twitterPostRequest
-                                                     = collection.find()
-                                                                 .filter( eq( "key",
-                                                                              fileDownloadResponse.key() ) )
-                                                                 .first();
+                                                        MongoCollection<TwitterPostRequest>
+                                                                collection
+                                                                = MongoDBConnection.instance()
+                                                                                   .getDatabase()
+                                                                                   .getCollection( "TwitterPostRequests",
+                                                                                                   TwitterPostRequest.class );
+                                                        TwitterPostRequest
+                                                                twitterPostRequest
+                                                                = collection.find()
+                                                                            .filter( eq( "key",
+                                                                                         fileDownloadResponse.key() ) )
+                                                                            .first();
 
-                                             if ( twitterPostRequest != null ) {
+                                                        if ( twitterPostRequest != null ) {
 
-                                                 GridFSBucket
-                                                         bucket
-                                                         = MongoDBConnection.bucket();
+                                                            GridFSBucket bucket
+                                                                    = MongoDBConnection.bucket();
 
-                                                 ObjectId oid
-                                                         = new ObjectId( twitterPostRequest.getKey() );
+                                                            ObjectId oid
+                                                                    = new ObjectId( twitterPostRequest.getKey() );
 
 
-                                                 GridFSFile entry
-                                                         = bucket.find( eq( "_id",
-                                                                            oid ) )
-                                                                 .first();
+                                                            GridFSFile entry
+                                                                    = bucket.find( eq( "_id",
+                                                                                       oid ) )
+                                                                            .first();
 
-                                                 if ( entry != null ) {
+                                                            if ( entry != null ) {
 
-                                                     String
-                                                             filename
-                                                             = entry.getFilename();
+                                                                String filename
+                                                                        = entry.getFilename();
 
-                                                     GridFSDownloadStream
-                                                             downloadStream
-                                                             = bucket.openDownloadStream( filename );
+                                                                GridFSDownloadStream
+                                                                        downloadStream
+                                                                        = bucket.openDownloadStream( filename );
 
-                                                     byte[]
-                                                             imageBytes
-                                                             = downloadStream.readAllBytes();
+                                                                byte[]
+                                                                        imageBytes
+                                                                        = downloadStream.readAllBytes();
 
-                                                     downloadStream.close();
+                                                                downloadStream.close();
 
-                                                     ContentModerationData
-                                                             moderationData
-                                                             = new ContentModerationData( event,
-                                                                                          twitterPostMetadata.suggestive(),
-                                                                                          fileDownloadMetadata,
-                                                                                          imageBytes );
+                                                                ContentModerationData
+                                                                        moderationData
+                                                                        = new ContentModerationData( event,
+                                                                                                     twitterPostMetadata.suggestive(),
+                                                                                                     fileDownloadMetadata,
+                                                                                                     imageBytes );
 
-                                                     ModeratedContent
-                                                             result
-                                                             = new ModeratedContent( fileDownloadMetadata,
-                                                                                     moderationData,
-                                                                                     imageBytes );
+                                                                ModeratedContent
+                                                                        result
+                                                                        = new ModeratedContent( fileDownloadMetadata,
+                                                                                                moderationData,
+                                                                                                imageBytes );
 
-                                                     twitterServiceResults.add( result );
-                                                 }
-                                             }
-                                         }
-                                         catch ( Exception e ) {
-                                             logger.info( "Error moderating : {}",
-                                                          e.getMessage() );
-                                         }
-                                     }
-                                     return twitterServiceResults;
-                                 },
-                                 ( twitterServiceResults, twitterServiceResults2 ) -> {
-                                     twitterServiceResults.addAll( twitterServiceResults2 );
-                                     return twitterServiceResults;
-                                 } );
+                                                                twitterServiceResults.add( result );
+                                                            }
+                                                        }
+                                                    }
+                                                    catch ( Exception e ) {
+                                                        logger.info( "Error moderating : {}",
+                                                                     e.getMessage() );
+                                                    }
+                                                }
+                                                return twitterServiceResults;
+                                            },
+                                            ( twitterServiceResults, twitterServiceResults2 ) -> {
+                                                twitterServiceResults.addAll( twitterServiceResults2 );
+                                                return twitterServiceResults;
+                                            } );
 
         return new TwitterServiceResult( twitterPostMetadata,
                                          moderatedContents );
