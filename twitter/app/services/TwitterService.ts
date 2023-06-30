@@ -56,24 +56,24 @@ export class TwitterService {
 
       const { authTokens, csrfToken, guestToken, baseHeaders } = this;
 
-      try {
-        resolve(request());
-      }
-      catch (e) {
-        if (authTokens.size > 0 && fallback) {
-          for (const [i, authToken] of authTokens.entries()) {
-            try {
-              resolve(request(authToken));
-            } catch (err) {
-              console.log(`Auth Fallback | attempt (${i + 1})`)
+      return request()
+        .then(resolve)
+        .catch(err => {
+          if (authTokens.size > 0 && fallback) {
+            for (const [i, authToken] of authTokens.entries()) {
+              try {
+                resolve(request(authToken));
+              } catch (err) {
+                console.log(`Auth Fallback | attempt (${i + 1})`)
+              }
             }
+            reject('Auth fallbacks rejected')
           }
-          reject('Auth fallbacks rejected')
-        }
-        reject('No auth tokens available')
-      }
-
-      throw new Error('Should not reach here');
+          else if (!fallback) {
+            reject(err)
+          }
+          reject('No auth tokens available')
+        });
 
       async function request(authToken?: string) {
 
