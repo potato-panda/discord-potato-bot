@@ -1,5 +1,6 @@
 import { Msg, NatsConnection, StringCodec } from 'nats';
 import { log } from 'node:console';
+import { inspect } from 'node:util';
 
 export interface ListenerEvent {
   data: unknown;
@@ -19,7 +20,7 @@ export abstract class Listener<T extends ListenerEvent> {
         } else {
           try {
             const data = msg.json() as T['data'];
-            log(`Request received: ${data}`);
+            log(`Request received: ${inspect(data, false, null, true)}`);
             this.onMessage(msg, data);
           } catch (err: any) {
             log(`Data error: ${err?.message || err}`);
