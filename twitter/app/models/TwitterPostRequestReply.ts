@@ -19,9 +19,10 @@ const TwitterPostRequestSchema = new Schema<TwitterPostRequestReply>({
     type: Date,
     required: true,
     default: Date.now,
-    expires: 60 * 60,
   },
-}).index({ postId: 1, key: 1 }, { unique: true });
+})
+  .index({ postId: 1, key: 1 }, { unique: true })
+  .index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 });
 
 export const TwitterPostRequestReplyModel = model<TwitterPostRequestReply>(
   'TwitterPostRequest',
