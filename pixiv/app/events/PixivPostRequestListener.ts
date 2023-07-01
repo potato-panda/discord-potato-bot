@@ -21,7 +21,11 @@ export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
     const sc = StringCodec();
     const { postId, quality } = data;
     try {
-      const { metadata, illustMetadata } = await this.service.getIllust(postId);
+      const { metadata, illustMetadata } =
+        await this.service.getIllust(postId)
+          .catch(async () => await this.service.refreshAuth()
+            .then(async () => await this.service.getIllust(postId))
+          );
 
       const downloadResponses =
         metadata.illustType === 'ugoira'
