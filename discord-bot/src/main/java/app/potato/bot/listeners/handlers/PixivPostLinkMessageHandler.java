@@ -78,7 +78,7 @@ class PixivPostLinkMessageHandler extends MessageHandler {
             ArrayList<ContentModerationServiceClient.ModeratedContent>
                     moderatedContents
                     = pixivServiceResult.moderatedContents();
-            
+
             boolean nsfwChannel = event.getChannel().asTextChannel().isNSFW();
 
             ArrayList<ExtendedFileUpload> filesToUpload
@@ -111,7 +111,7 @@ class PixivPostLinkMessageHandler extends MessageHandler {
                     .setTitle( metadata.title(),
                                metadata.url() )
                     .setAuthor( metadata.userName() )
-                    .setDescription( metadata.description() )
+//                    .setDescription( metadata.description() )
 //                                        .addField( "Tags",
 //                                                   String.join( ", ",
 //                                                                metadata.tags()
