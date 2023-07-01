@@ -29,5 +29,4 @@ export default class NatsClient {
 
     return new NatsClient(nc);
   }
-
 }

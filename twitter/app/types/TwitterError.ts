@@ -3,6 +3,6 @@ export interface TwitterError {
 }
 
 export interface Error {
-  code:    number;
+  code: number;
   message: string;
 }

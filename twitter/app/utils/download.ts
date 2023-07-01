@@ -1,8 +1,9 @@
 import { error, log } from 'node:console';
 import { ClientRequest } from 'node:http';
 
-export async function download(request: ClientRequest)
-  : Promise<FileDownload.Response> {
+export async function download(
+  request: ClientRequest,
+): Promise<FileDownload.Response> {
   const downloadPromise = new Promise<FileDownload.Response>(
     (resolve, reject) => {
       request
@@ -18,10 +19,7 @@ export async function download(request: ClientRequest)
           }
 
           const contentType = headers['content-type'] as string;
-          const contentSize = parseInt(
-            headers['content-length'] as string,
-            10,
-          );
+          const contentSize = parseInt(headers['content-length'] as string, 10);
 
           const fileNameWithExtension = fileNameFromPathName(pathname);
 
@@ -55,7 +53,7 @@ export async function download(request: ClientRequest)
               reject('Error encoding image');
             });
         })
-        .on('finish', () => { })
+        .on('finish', () => {})
         .on('error', (err) => {
           error('Error writing chunks: ', err.message);
           reject('Error writing chunks');
@@ -71,7 +69,6 @@ export async function download(request: ClientRequest)
 function fileNameFromPathName(path: string) {
   return path.split('/').slice(-1)[0];
 }
-
 
 export namespace FileDownload {
   export interface Metadata {

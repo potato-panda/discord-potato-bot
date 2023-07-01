@@ -11,9 +11,7 @@ export interface TwitterPostRequestEvent extends ListenerEvent {
 }
 
 export class TwitterPostRequestListener extends Listener<TwitterPostRequestEvent> {
-  constructor(
-    private service: TwitterService,
-  ) {
+  constructor(private service: TwitterService) {
     super(ListenerSubjects.TwitterPostRequest);
   }
 
@@ -50,7 +48,7 @@ export class TwitterPostRequestListener extends Listener<TwitterPostRequestEvent
           favourites: favorite_count,
           suggestive: possibly_sensitive ?? false,
           createdAt: created_at,
-          embedColour: profile_link_color
+          embedColour: profile_link_color,
         },
         downloadResponses: await this.service.downloadMedia(
           postId,

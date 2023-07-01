@@ -6,7 +6,7 @@ export interface ListenerEvent {
 }
 
 export abstract class Listener<T extends ListenerEvent> {
-  constructor(public readonly subject: string) { }
+  constructor(public readonly subject: string) {}
   protected abstract onMessage(msg: Msg, data: T['data']): Promise<void>;
 
   public listen(nats: NatsConnection) {

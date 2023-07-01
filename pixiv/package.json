@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "nodemon -r dotenv/config app/index.ts",
-    "format:rome": "rome format --write app",
+    "format": "rome format --write app tests",
     "start": "node build/index.js"
   },
   "keywords": [],
@@ -14,16 +14,16 @@
   "license": "ISC",
   "dependencies": {
     "mongoose": "^7.3.1",
-    "nats": "^2.15.0",
-    "pixiv-api-wrapper": "^1.1.1",
-    "puppeteer-core": "^20.7.3",
+    "nats": "^2.15.1",
+    "pixiv-api-wrapper": "^1.2.2",
+    "puppeteer-core": "^20.7.4",
     "vitest": "^0.32.2"
   },
   "devDependencies": {
-    "@types/node": "^20.3.1",
+    "@types/node": "^20.3.3",
     "dotenv": "^16.3.1",
     "rome": "^12.1.3",
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.3"
+    "typescript": "^5.1.6"
   }
 }

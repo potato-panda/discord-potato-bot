@@ -4,26 +4,35 @@ import { PixivPostRequestReplyModel } from '../models/PixivPostRequestReply';
 import { uploadStream } from '../utils/uploadStream';
 
 export class PixivService {
-  public constructor(
-    protected client: PixivApi,
-  ) { }
+  expires = this.nextExpiry();
+  public constructor(protected client: PixivApi) {}
+
+  private nextExpiry() {
+    return Date.now() + 1_000 * 60 * 50;
+  }
 
   async getIllust(illustId: string) {
-    let illustMetadata;
+    const { Auth, Illust } = this.client;
 
-    try {
-      illustMetadata = await this.client.Illust.detail(illustId);
-    } catch (e) {
-      illustMetadata = await this.client.Auth.refreshAuth()
+    if (Date.now() >= this.expires) {
+      const { accessToken } = Auth.getAuthentication();
+      await Auth.refreshAuth()
         .then(async () => {
-          console.log('Refreshed Token')
-          return await this.client.Illust.detail(illustId)
-        }).catch(() => {
+          const { accessToken: newAccessToken } = Auth.getAuthentication();
+          if (accessToken === newAccessToken) {
+            console.log('Access Token unchanged');
+            throw new Error('Access Token unchanged');
+          }
+          console.log('Refreshed access token');
+          this.expires = this.nextExpiry();
+        })
+        .catch(() => {
           console.log('Failed to refresh token');
           throw new Error('Failed to refresh token');
         });
     }
 
+    const illustMetadata = await Illust.detail(illustId);
 
     const {
       illust: {
@@ -53,14 +62,14 @@ export class PixivService {
         favourites,
         createdAt,
         illustType,
-        views
+        views,
       } as PixivPost.Metadata,
       illustMetadata,
     };
   }
 
   async downloadIllusts(
-    illustMetadata: Illust.Illust,
+    illustMetadata: Illust,
     quality?: string,
   ): Promise<PixivPost.FileDownloadResponse[]> {
     const q = quality === 'REGULAR' ? 'large' : 'original';

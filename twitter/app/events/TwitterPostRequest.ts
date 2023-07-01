@@ -4,7 +4,7 @@ export namespace TwitterPost {
   export interface Request {
     url: string;
   }
-  
+
   export interface Metadata {
     content: string | null;
     userName: string;

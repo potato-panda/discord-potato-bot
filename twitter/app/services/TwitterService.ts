@@ -6,30 +6,33 @@ import { bearer, userAgent } from '../constants';
 import { TwitterPost } from '../events/TwitterPostRequest';
 import { TwitterPostRequestReplyModel } from '../models/TwitterPostRequestReply';
 import { Tweet, Variant } from '../types/Tweet';
-import { FileDownload, createHttpRequest, download, uploadStream, } from '../utils';
+import {
+  FileDownload,
+  createHttpRequest,
+  download,
+  uploadStream,
+} from '../utils';
 
 // Reminder: Tokens generated with bearer token must be sent alongside that bearer token. Using other bearer tokens will not work.
 
 export class TwitterService {
-  readonly authTokens: Set<string> = new Set<string>;
+  readonly authTokens: Set<string> = new Set<string>();
   private csrfToken: string | null = null;
   private guestToken: string | null = null;
   private baseHeaders = {
-    "user-agent": userAgent,
-    "x-twitter-client-language": "en",
-    "origin": "https://twitter.com",
-    "Authorization": bearer,
-  }
+    'user-agent': userAgent,
+    'x-twitter-client-language': 'en',
+    origin: 'https://twitter.com',
+    Authorization: bearer,
+  };
 
   constructor(twitterTokens?: string) {
     if (twitterTokens) {
-      this.authTokens
-        = twitterTokens ?
-          twitterTokens.split(",").length > 0
-            ? new Set(twitterTokens.split(",").filter(s => s))
-            :
-            new Set([twitterTokens])
-          : new Set([]);
+      this.authTokens = twitterTokens
+        ? twitterTokens.split(',').length > 0
+          ? new Set(twitterTokens.split(',').filter((s) => s))
+          : new Set([twitterTokens])
+        : new Set([]);
     }
   }
 
@@ -38,90 +41,88 @@ export class TwitterService {
   }
 
   private async regenerateGuestToken() {
-    this.guestToken
-      = (await generateGuestToken() as { guestToken: string })['guestToken'];
+    this.guestToken = ((await generateGuestToken()) as { guestToken: string })[
+      'guestToken'
+    ];
   }
 
   async getTweet(tweetUrl: string, fallback = true): Promise<Tweet> {
-
     const { pathname } = new URL(tweetUrl);
     const tweetId = pathname.split('/').splice(-1)[0];
 
-    if (!this.csrfToken)
-      this.regenerateCsrfToken();
-    if (!this.guestToken)
-      await this.regenerateGuestToken();
+    if (!this.csrfToken) this.regenerateCsrfToken();
+    if (!this.guestToken) await this.regenerateGuestToken();
 
     return new Promise<Tweet>((resolve, reject) => {
-
       const { authTokens, csrfToken, guestToken, baseHeaders } = this;
 
       return request()
         .then(resolve)
-        .catch(err => {
+        .catch((err) => {
           if (authTokens.size > 0 && fallback) {
             for (const [i, authToken] of authTokens.entries()) {
               try {
                 resolve(request(authToken));
               } catch (err) {
-                console.log(`Auth Fallback | attempt (${i + 1})`)
+                console.log(`Auth Fallback | attempt (${i + 1})`);
               }
             }
-            reject('Auth fallbacks rejected')
+            reject('Auth fallbacks rejected');
+          } else if (!fallback) {
+            reject(err);
           }
-          else if (!fallback) {
-            reject(err)
-          }
-          reject('No auth tokens available')
+          reject('No auth tokens available');
         });
 
       async function request(authToken?: string) {
-
         const url = `https://api.twitter.com/1.1/statuses/show/${tweetId}.json?tweet_mode=extended&cards_platform=Web-12&include_cards=1&include_reply_count=1&include_user_entities=0`;
 
-        const headers = !authToken ? {
-          ...baseHeaders,
-          "x-guest-token": guestToken ?? '',
-        } : {
-          ...baseHeaders,
-          "x-twitter-active-user": "yes",
-          "x-twitter-auth-type": "OAuth2Session",
-          "x-csrf-token": csrfToken ?? '',
-          "cookie": `auth_token=${authToken}; ct0=${csrfToken ?? ''}`,
-        }
+        const headers = !authToken
+          ? {
+              ...baseHeaders,
+              'x-guest-token': guestToken ?? '',
+            }
+          : {
+              ...baseHeaders,
+              'x-twitter-active-user': 'yes',
+              'x-twitter-auth-type': 'OAuth2Session',
+              'x-csrf-token': csrfToken ?? '',
+              cookie: `auth_token=${authToken}; ct0=${csrfToken ?? ''}`,
+            };
 
         return new Promise<Tweet>((resolve, reject) => {
           httpsRequest(url, {
             method: 'GET',
             headers,
-          }).on('response', response => {
+          })
+            .on('response', (response) => {
+              // console.log('sent headers', req.getHeaders())
 
-            // console.log('sent headers', req.getHeaders())
+              const chunks: Buffer[] = [];
+              const { statusCode } = response;
 
-            const chunks: Buffer[] = [];
-            const { statusCode } = response;
-
-            response
-              .on('readable', () => {
-                response.read();
-              })
-              .on('data', data => {
-                chunks.push(data);
-              })
-              .on('end', () => {
-                const result: Tweet = JSON.parse(Buffer.concat(chunks)
-                  .toString('utf-8'));
-                if (statusCode !== 200) {
-                  reject(result);
-                }
-                resolve(result);
-              })
-              .on('close', () => {
-              })
-              .on('error', err => {
-                reject(err)
-              });
-          }).end();
+              response
+                .on('readable', () => {
+                  response.read();
+                })
+                .on('data', (data) => {
+                  chunks.push(data);
+                })
+                .on('end', () => {
+                  const result: Tweet = JSON.parse(
+                    Buffer.concat(chunks).toString('utf-8'),
+                  );
+                  if (statusCode !== 200) {
+                    reject(result);
+                  }
+                  resolve(result);
+                })
+                .on('close', () => {})
+                .on('error', (err) => {
+                  reject(err);
+                });
+            })
+            .end();
         });
       }
     });
@@ -140,57 +141,61 @@ export class TwitterService {
       switch (type) {
         case 'animated_gif':
         case 'video': {
-          const vidUrl = (video_info?.variants
-            .filter(e => e.content_type === 'video/mp4')
-            .sort((a, b) =>
-              (a.bitrate || 0) === (b.bitrate || 0) ?
-                0 : (a.bitrate || 0) > (b.bitrate || 0) ? -1 : 1
-            )[0] as Variant).url;
+          const vidUrl = (
+            video_info?.variants
+              .filter((e) => e.content_type === 'video/mp4')
+              .sort((a, b) =>
+                (a.bitrate || 0) === (b.bitrate || 0)
+                  ? 0
+                  : (a.bitrate || 0) > (b.bitrate || 0)
+                  ? -1
+                  : 1,
+              )[0] as Variant
+          ).url;
           stringLink = new URL(vidUrl);
         }
-          break;
+        break;
         case 'photo': {
           const imgLink = media_url_https;
           stringLink = new URL(imgLink);
         }
-          break;
+        break;
       }
 
       const req = createHttpRequest(stringLink);
 
-      const response = await download(req)
-        .then(async (response) => {
-          let { data, metadata, success } = response;
+      const response = await download(req).then(async (response) => {
+        let { data, metadata, success } = response;
 
-          // Convert to gif because media format is mp4 and not a real gif
-          if (type === 'animated_gif') {
-            data = await convertToGifFormat(data, metadata);
-          }
+        // Convert to gif because media format is mp4 and not a real gif
+        if (type === 'animated_gif') {
+          data = await convertToGifFormat(data, metadata);
+        }
 
-          const upload = await uploadStream(metadata, data);
+        const upload = await uploadStream(metadata, data);
 
-          const key = upload.id.toJSON();
+        const key = upload.id.toJSON();
 
-          // Find stored reply else create new reply
-          const entry =
-            await TwitterPostRequestReplyModel.findOne({
-              postId: twid,
-              key,
-            }).exec() ??
-            new TwitterPostRequestReplyModel({
-              postId: twid,
-              key,
-            });
-
-          await entry.save();
-
-          return Promise.resolve<TwitterPost.FileDownloadResponse>({
-            metadata,
+        // Find stored reply else create new reply
+        const entry =
+          (await TwitterPostRequestReplyModel.findOne({
+            postId: twid,
             key,
-            success,
-            message: '',
+          }).exec()) ??
+          new TwitterPostRequestReplyModel({
+            postId: twid,
+            key,
           });
+
+        await entry.save();
+
+        return Promise.resolve<TwitterPost.FileDownloadResponse>({
+          metadata,
+          key,
+          success,
+          message: '',
         });
+      });
 
       requests.push(response);
     }
@@ -250,5 +255,4 @@ export class TwitterService {
       return data;
     }
   }
-
 }

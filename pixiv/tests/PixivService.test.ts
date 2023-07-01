@@ -8,14 +8,13 @@ describe('pixiv service', () => {
   beforeAll(async () => {
     expect(env.PIXIV_RT).toBeTruthy();
 
-    const pixivClient = await PixivApi.create(env.PIXIV_RT ?? "");
+    const pixivClient = await PixivApi.create(env.PIXIV_RT ?? '');
 
     pixivService = new PixivService(pixivClient);
-  })
+  });
 
   it('should get a illust json', async () => {
-    const illust = pixivService.getIllust("60895189");
-    expect(illust).resolves.toHaveProperty("illustMetadata");
-  })
-
-})
+    const illust = pixivService.getIllust('60895189');
+    expect(illust).resolves.toHaveProperty('illustMetadata');
+  });
+});
