@@ -7,14 +7,10 @@ export class PixivService {
   public constructor(
     protected client: PixivApi,
   ) {
-    const { expiresIn } = this.client.Auth.getAuthentication();
-    setTimeout(() => this.refreshAuth, expiresIn - (10 * 60 * 1_000));
-  }
-
-  async refreshAuth() {
-    await this.client.Auth.refreshAuth();
-    const { expiresIn } = this.client.Auth.getAuthentication();
-    setTimeout(() => this.refreshAuth, expiresIn - (10 * 60 * 1_000));
+    setInterval(async () => {
+      await this.client.Auth.refreshAuth();
+      console.log('Refreshed Token on: ', new Date())
+    }, (50 * 60 * 1_000));
   }
 
   async getIllust(illustId: string) {
@@ -26,17 +22,13 @@ export class PixivService {
         tags,
         title,
         caption: description,
-        user: {
-          name: userName,
-          account: userAccount
-        },
+        user: { name: userName, account: userAccount },
         illustAiType: aiType,
         totalBookmarks: favourites,
         createDate: createdAt,
         type: illustType,
       },
     } = illustMetadata;
-
 
     return {
       metadata: {
@@ -52,8 +44,8 @@ export class PixivService {
         createdAt,
         illustType,
       } as PixivPost.Metadata,
-      illustMetadata
-    }
+      illustMetadata,
+    };
   }
 
   async downloadIllusts(
@@ -82,11 +74,10 @@ export class PixivService {
 
         // Find stored reply else create new reply
         const entry =
-          await PixivPostRequestReplyModel.findOne({
+          (await PixivPostRequestReplyModel.findOne({
             postId: `${illustMetadata.id}_p${i + 1}`,
             key,
-          })?.exec()
-          ??
+          })?.exec()) ??
           new PixivPostRequestReplyModel({
             postId: `${illustMetadata.id}_p${i + 1}`,
             key,

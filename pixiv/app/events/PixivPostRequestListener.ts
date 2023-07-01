@@ -11,9 +11,7 @@ export interface PixivPostRequestEvent extends ListenerEvent {
 }
 
 export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
-  constructor(
-    private service: PixivService,
-  ) {
+  constructor(private service: PixivService) {
     super(ListenerSubjects.PixivPostRequest);
   }
 
@@ -21,16 +19,14 @@ export class PixivPostRequestListener extends Listener<PixivPostRequestEvent> {
     const sc = StringCodec();
     const { postId, quality } = data;
     try {
-      const { metadata, illustMetadata } =
-        await this.service.getIllust(postId)
-          .catch(async () => await this.service.refreshAuth()
-            .then(async () => await this.service.getIllust(postId))
-          );
+      const { service } = this;
+
+      const { metadata, illustMetadata } = await service.getIllust(postId);
 
       const downloadResponses =
         metadata.illustType === 'ugoira'
-          ? await this.service.downloadUgoira(postId)
-          : await this.service.downloadIllusts(illustMetadata.illust, quality);
+          ? await service.downloadUgoira(postId)
+          : await service.downloadIllusts(illustMetadata.illust, quality);
 
       const reply: PixivPost.Reply = {
         metadata,

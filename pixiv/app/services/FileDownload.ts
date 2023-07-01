@@ -1,4 +1,3 @@
-
 export namespace FileDownload {
   export interface Metadata {
     mimeType: string;

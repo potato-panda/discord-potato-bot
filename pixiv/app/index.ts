@@ -8,34 +8,26 @@ import { PixivService } from './services/PixivService';
 
 (async function () {
   try {
+    // const browser = await puppeteer.launch({
+    //   headless: 'new',
+    //   args: [
+    //     '--disable-gpu',
+    //     '--disable-setuid-sandbox',
+    //     '--no-sandbox',
+    //     '--no-zygote'],
+    //   executablePath: puppeteer.executablePath('chrome'),
+    // });
 
-    const browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--disable-gpu',
-        '--disable-setuid-sandbox',
-        '--no-sandbox',
-        '--no-zygote'],
-      executablePath: puppeteer.executablePath('chrome'),
-    });
+    if (!env.PIXIV_RT) throw new Error('Refresh Token is not set');
 
-    const client = env.PIXIV_RT
-      ? await PixivApi.create(env.PIXIV_RT)
-      : await PixivApi.create({
-        userId: env.PIXIV_ID ?? '',
-        password: env.PIXIV_PW ?? '',
-      },
-        browser,
-      );
+    const client = await PixivApi.create(env.PIXIV_RT);
 
     const pixivService = new PixivService(client);
 
     const natsClient = await NatsClient.create();
 
-    new PixivPostRequestListener(pixivService)
-      .listen(natsClient.connection);
-
+    new PixivPostRequestListener(pixivService).listen(natsClient.connection);
   } catch (err) {
-    console.log(err)
+    console.log(err);
   }
 })();

@@ -6,7 +6,7 @@ export interface ListenerEvent {
 }
 
 export abstract class Listener<T extends ListenerEvent> {
-  constructor(public readonly subject: string) { }
+  constructor(public readonly subject: string) {}
   abstract onMessage(msg: Msg, data: T['data']): Promise<void>;
 
   public listen(nats: NatsConnection) {
@@ -21,7 +21,6 @@ export abstract class Listener<T extends ListenerEvent> {
             const data = msg.json() as T['data'];
             log(`Request received: ${data}`);
             this.onMessage(msg, data);
-
           } catch (err: any) {
             log(`Data error: ${err?.message || err}`);
             msg.respond(sc.encode(`Request Error: ${err?.message || err}`));

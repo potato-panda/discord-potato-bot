@@ -5,7 +5,7 @@ export namespace PixivPost {
     postId: string;
     quality: 'ORIGINAL' | 'REGULAR';
   }
-  
+
   export interface Metadata {
     explicit: boolean;
     tags: string[];
