@@ -5,7 +5,7 @@ import { generateCsrfToken, generateGuestToken } from 'twitter-web-auth';
 import { bearer, userAgent } from '../constants';
 import { TwitterPost } from '../events/TwitterPostRequest';
 import { TwitterPostRequestReplyModel } from '../models/TwitterPostRequestReply';
-import { Tweet } from '../types/Tweet';
+import { Tweet, Variant } from '../types/Tweet';
 import { FileDownload, createHttpRequest, download, uploadStream, } from '../utils';
 
 // Reminder: Tokens generated with bearer token must be sent alongside that bearer token. Using other bearer tokens will not work.
@@ -140,7 +140,12 @@ export class TwitterService {
       switch (type) {
         case 'animated_gif':
         case 'video': {
-          const vidUrl = video_info?.variants.find(e => e.content_type === 'video/mp4')?.url as string;
+          const vidUrl = (video_info?.variants
+            .filter(e => e.content_type === 'video/mp4')
+            .sort((a, b) =>
+              (a.bitrate || 0) === (b.bitrate || 0) ?
+                0 : (a.bitrate || 0) > (b.bitrate || 0) ? -1 : 1
+            )[0] as Variant).url;
           stringLink = new URL(vidUrl);
         }
           break;

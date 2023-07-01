@@ -77,6 +77,7 @@ class TwitterPostLinkMessageHandler extends MessageHandler {
             ArrayList<ModeratedContent> moderatedContents
                     = twitterServiceResult.moderatedContents();
 
+            boolean nsfwChannel = event.getChannel().asTextChannel().isNSFW();
 
             ArrayList<ExtendedFileUpload> filesToUpload
                     = moderatedContents
@@ -88,13 +89,7 @@ class TwitterPostLinkMessageHandler extends MessageHandler {
                                                        moderatedContent.metadata()
                                                                        .getFileNameWithExtension() );
 
-                        if ( moderatedContent.moderationData()
-                                             .isExplicit()
-                                ||
-                                moderatedContent.moderationData()
-                                                .contentModerationResponses()
-                                        != null )
-                        {
+                        if ( !nsfwChannel ) {
                             return new ExtendedFileUpload( moderatedContent.metadata(),
                                                            fileUpload.asSpoiler() );
                         }

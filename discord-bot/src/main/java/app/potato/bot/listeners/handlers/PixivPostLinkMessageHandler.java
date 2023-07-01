@@ -78,6 +78,8 @@ class PixivPostLinkMessageHandler extends MessageHandler {
             ArrayList<ContentModerationServiceClient.ModeratedContent>
                     moderatedContents
                     = pixivServiceResult.moderatedContents();
+            
+            boolean nsfwChannel = event.getChannel().asTextChannel().isNSFW();
 
             ArrayList<ExtendedFileUpload> filesToUpload
                     = moderatedContents
@@ -89,12 +91,8 @@ class PixivPostLinkMessageHandler extends MessageHandler {
                                                        moderatedContent.metadata()
                                                                        .getFileNameWithExtension() );
 
-                        if ( moderatedContent.moderationData()
-                                             .isExplicit()
-                                ||
-                                moderatedContent.moderationData()
-                                                .contentModerationResponses()
-                                        != null )
+                        if ( !nsfwChannel && moderatedContent.moderationData()
+                                                             .isExplicit() )
                         {
                             return new ExtendedFileUpload( moderatedContent.metadata(),
                                                            fileUpload.asSpoiler() );
