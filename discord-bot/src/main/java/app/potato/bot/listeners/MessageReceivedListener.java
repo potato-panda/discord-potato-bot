@@ -33,10 +33,6 @@ class MessageReceivedListener extends Listener {
 
         String sanitizedContent = content.toLowerCase().trim();
 
-        if ( sanitizedContent.equals( "!ping" ) ) {
-            message.reply( "Pong!" ).queue();
-        }
-
         ConcurrentHashMap<String, MessageHandler>
                 handlers = MessageHandlerRegistry.getMessageHandlers();
 

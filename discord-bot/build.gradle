@@ -30,7 +30,7 @@ dependencies {
     implementation group: 'org.reflections', name: 'reflections', version: '0.10.2'
 
     // https://mvnrepository.com/artifact/redis.clients/jedis
-    implementation group: 'redis.clients', name: 'jedis', version: '4.3.1'
+    implementation group: 'redis.clients', name: 'jedis', version: '4.4.3'
 
     // https://mvnrepository.com/artifact/io.nats/jnats
     implementation group: 'io.nats', name: 'jnats', version: '2.16.8'
@@ -47,6 +47,9 @@ dependencies {
     implementation 'software.amazon.awssdk:sso'
 
     implementation 'software.amazon.awssdk:rekognition'
+
+    implementation group: 'org.jsoup', name: 'jsoup', version: '1.16.1'
+
 }
 
 compileJava.options.encoding = 'UTF-8'

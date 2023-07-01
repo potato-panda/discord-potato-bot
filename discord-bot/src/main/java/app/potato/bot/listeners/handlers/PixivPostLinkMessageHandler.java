@@ -9,6 +9,9 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.utils.FileUpload;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.safety.Safelist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,29 +103,47 @@ class PixivPostLinkMessageHandler extends MessageHandler {
 
                         return new ExtendedFileUpload( moderatedContent.metadata(),
                                                        fileUpload );
-                    } )
-                    .collect( Collectors.toCollection( ArrayList::new ) );
+                    } ).collect( Collectors.toCollection( ArrayList::new ) );
 
             PixivPostMetadata metadata = pixivServiceResult.metadata();
 
-            EmbedBuilder embedBuilder
-                    = new EmbedBuilder()
-                    .setColor( Color.decode( "#1da0f2" ) )
-                    .setTitle( metadata.title(),
-                               metadata.url() )
-                    .setAuthor( metadata.userName() )
-//                    .setDescription( metadata.description() )
+            EmbedBuilder embedBuilder = new EmbedBuilder();
+            embedBuilder.setColor( Color.decode( "#1da0f2" ) )
+                        .setTitle( metadata.title(),
+                                   metadata.url() )
+                        .setAuthor( metadata.userName() );
+
+            String html = metadata.description();
+
+            Document doc = Jsoup.parse( html );
+
+            Document.OutputSettings outputSettings
+                    = new Document.OutputSettings().prettyPrint( false );
+
+            doc.select( "br" ).before( "\\n" ).remove();
+            doc.select( "p" ).before( "\\n" ).remove();
+
+            String s = doc.html()
+                          .replaceAll( "\\\\n",
+                                       "\n" );
+
+            String description = Jsoup.clean( s,
+                                              "",
+                                              Safelist.none(),
+                                              outputSettings );
+
+            embedBuilder.setDescription( description )
 //                                        .addField( "Tags",
 //                                                   String.join( ", ",
 //                                                                metadata.tags()
 //                                                                        .toArray( value -> new String[]{} ) ),
 //                                                   false )
-                    .addField( "Favourites",
-                               String.valueOf( metadata.favourites() ),
-                               true )
-                    .setFooter( "Pixiv" )
-                    .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
-                                                .toInstant() );
+                        .addField( "Favourites",
+                                   String.valueOf( metadata.favourites() ),
+                                   true )
+                        .setFooter( "Pixiv" )
+                        .setTimestamp( ZonedDateTime.parse( metadata.createdAt() )
+                                                    .toInstant() );
 
 
             MessageEmbed embed = embedBuilder.build();

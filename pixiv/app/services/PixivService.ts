@@ -6,15 +6,24 @@ import { uploadStream } from '../utils/uploadStream';
 export class PixivService {
   public constructor(
     protected client: PixivApi,
-  ) {
-    setInterval(async () => {
-      await this.client.Auth.refreshAuth();
-      console.log('Refreshed Token on: ', new Date())
-    }, (50 * 60 * 1_000));
-  }
+  ) { }
 
   async getIllust(illustId: string) {
-    const illustMetadata = await this.client.Illust.detail(illustId);
+    let illustMetadata;
+
+    try {
+      illustMetadata = await this.client.Illust.detail(illustId);
+    } catch (e) {
+      illustMetadata = await this.client.Auth.refreshAuth()
+        .then(async () => {
+          console.log('Refreshed Token')
+          return await this.client.Illust.detail(illustId)
+        }).catch(() => {
+          console.log('Failed to refresh token');
+          throw new Error('Failed to refresh token');
+        });
+    }
+
 
     const {
       illust: {
