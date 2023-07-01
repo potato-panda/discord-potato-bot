@@ -140,7 +140,7 @@ export class TwitterService {
       switch (type) {
         case 'animated_gif':
         case 'video': {
-          const vidUrl = video_info?.variants[0].url as string;
+          const vidUrl = video_info?.variants.find(e => e.content_type === 'video/mp4')?.url as string;
           stringLink = new URL(vidUrl);
         }
           break;
