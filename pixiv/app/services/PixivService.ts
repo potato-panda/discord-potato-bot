@@ -64,7 +64,7 @@ export class PixivService {
     const q = quality === 'REGULAR' ? 'large' : 'original';
     const illusts = await Utils.downloadIllusts(illustMetadata, q);
 
-    const result: PixivPost.FileDownloadResponse[] = [];
+    const result = [];
 
     for (const [i, illust] of illusts.entries()) {
       if (illust.status === 'fulfilled') {
@@ -117,7 +117,6 @@ export class PixivService {
       new PixivPostRequestReplyModel({
         postId: ugoiraId,
         key,
-        data,
       });
 
     await entry.save();

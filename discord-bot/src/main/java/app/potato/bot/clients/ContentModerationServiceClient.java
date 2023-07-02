@@ -3,6 +3,7 @@ package app.potato.bot.clients;
 import app.potato.bot.registries.ContentModerationRegistry;
 import app.potato.bot.registries.ContentModerationRegistry.ContentModerationServiceName;
 import app.potato.bot.utils.FileDownloadResponse.FileDownloadMetadata;
+import app.potato.bot.utils.ImageCompressor;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,22 +13,17 @@ import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public
-abstract
+public abstract
 class ContentModerationServiceClient {
-    public final
-    Logger     logger;
-    public final
-    HttpClient httpClient;
-    public ContentModerationServiceName name;
+    public final HttpClient                   httpClient;
+    public final Logger                       logger;
+    public       ContentModerationServiceName name;
 
     public
     ContentModerationServiceClient( Class<?> aClass )
     {
         this.httpClient = HttpClient.newHttpClient();
-        this.logger
-
-                        = LoggerFactory.getLogger( aClass );
+        this.logger     = LoggerFactory.getLogger( aClass );
     }
 
     public
@@ -55,6 +51,7 @@ class ContentModerationServiceClient {
 
     public static final
     class ContentModerationData {
+
         private final boolean isExplicit;
         private final ArrayList<ContentModerationServiceEvaluation>
                               contentModerationServiceEvaluations;
@@ -64,11 +61,27 @@ class ContentModerationServiceClient {
                                boolean isExplicit,
                                FileDownloadMetadata
                                        fileDownloadMetadata,
-                               byte[] contentBytes )
-        throws IOException, InterruptedException
+                               byte[] contentBytes ) throws IOException
         {
+            Logger logger
+                    = LoggerFactory.getLogger( ContentModerationData.class );
+
             boolean isNsfwChannel = event.getChannel().asTextChannel().isNSFW();
             this.isExplicit = isExplicit;
+
+            byte[] compressedBytes;
+
+            logger.info( "contentBytes: {}",
+                         contentBytes.length );
+
+            if ( fileDownloadMetadata.mimeType().matches( "^image/.*" ) ) {
+                compressedBytes = new ImageCompressor( contentBytes,
+                                                       fileDownloadMetadata.fileExtension() ).getCompressed();
+            } else {
+                compressedBytes = contentBytes;
+            }
+            logger.info( "compressedBytes: {}",
+                         compressedBytes.length );
 
             boolean isModerationRequired = !isExplicit && !isNsfwChannel;
 
@@ -79,10 +92,18 @@ class ContentModerationServiceClient {
                         azureContentModerationService
                         = (ACSContentModeratorModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
                                                                                                 .get( ContentModerationServiceName.ACS_CONTENT_MODERATOR );
-                ContentModerationServiceEvaluation response
-                        = azureContentModerationService.requestImageContentModeration( event,
-                                                                                       fileDownloadMetadata.mimeType(),
-                                                                                       contentBytes );
+                ContentModerationServiceEvaluation response;
+
+                try {
+                    response
+                            = azureContentModerationService.requestImageContentModeration( event,
+                                                                                           fileDownloadMetadata.mimeType(),
+                                                                                           compressedBytes );
+                }
+                catch ( IOException | InterruptedException e ) {
+                    logger.info( e.getMessage() );
+                    response = null;
+                }
 
                 if ( response != null ) {
                     evaluations.add( response );
@@ -96,10 +117,18 @@ class ContentModerationServiceClient {
                             awsRekognitionModerationServiceClient
                             = (AWSRekognitionModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
                                                                                                .get( ContentModerationServiceName.AWS_REKOGNITION );
-                    response
-                            = awsRekognitionModerationServiceClient.requestImageContentModeration( event,
-                                                                                                   fileDownloadMetadata.mimeType(),
-                                                                                                   contentBytes );
+                    try {
+                        response
+                                = awsRekognitionModerationServiceClient.requestImageContentModeration( event,
+                                                                                                       fileDownloadMetadata.mimeType(),
+                                                                                                       compressedBytes );
+                    }
+
+                    catch ( IOException | InterruptedException e ) {
+                        logger.info( e.getMessage() );
+                        response = null;
+                    }
+
                     if ( response != null ) {
                         evaluations.add( response );
                     }
