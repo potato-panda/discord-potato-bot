@@ -34,6 +34,7 @@ export class PixivService {
         user: { name: userName, account: userAccount },
         illustAiType: aiType,
         totalBookmarks: favourites,
+        totalView: views,
         createDate: createdAt,
         type: illustType,
       },
@@ -52,6 +53,7 @@ export class PixivService {
         favourites,
         createdAt,
         illustType,
+        views
       } as PixivPost.Metadata,
       illustMetadata,
     };

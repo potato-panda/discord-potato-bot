@@ -138,6 +138,9 @@ class PixivPostLinkMessageHandler extends MessageHandler {
 //                                                                metadata.tags()
 //                                                                        .toArray( value -> new String[]{} ) ),
 //                                                   false )
+                        .addField( "Views",
+                                   String.valueOf( metadata.views() ),
+                                   true )
                         .addField( "Favourites",
                                    String.valueOf( metadata.favourites() ),
                                    true )

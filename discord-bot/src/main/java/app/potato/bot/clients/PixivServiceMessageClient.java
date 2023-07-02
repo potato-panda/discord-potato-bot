@@ -181,7 +181,8 @@ class PixivServiceMessageClient {
                 boolean isAi,
                 int favourites,
                 String createdAt,
-                IllustrationType illustType
+                IllustrationType illustType,
+                int views
         )
         {
             public
