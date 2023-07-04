@@ -4,6 +4,7 @@ import app.potato.bot.registries.ContentModerationRegistry;
 import app.potato.bot.registries.ContentModerationRegistry.ContentModerationServiceName;
 import app.potato.bot.utils.FileDownloadResponse.FileDownloadMetadata;
 import app.potato.bot.utils.ImageCompressor;
+import app.potato.bot.utils.ImageScaler;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +54,7 @@ class ContentModerationServiceClient {
     class ContentModerationData {
 
         private final boolean isExplicit;
-        private final ArrayList<ContentModerationServiceEvaluation>
+        private       ArrayList<ContentModerationServiceEvaluation>
                               contentModerationServiceEvaluations;
 
         public
@@ -69,61 +70,34 @@ class ContentModerationServiceClient {
             boolean isNsfwChannel = event.getChannel().asTextChannel().isNSFW();
             this.isExplicit = isExplicit;
 
-            byte[] compressedBytes;
-
             logger.info( "contentBytes: {}",
                          contentBytes.length );
 
-            if ( fileDownloadMetadata.mimeType().matches( "^image/.*" ) ) {
-                compressedBytes = new ImageCompressor( contentBytes,
-                                                       fileDownloadMetadata.fileExtension() ).getCompressed();
-            } else {
-                compressedBytes = contentBytes;
-            }
-            logger.info( "compressedBytes: {}",
-                         compressedBytes.length );
+            byte[] reducedBytes = getReducedBytes( fileDownloadMetadata,
+                                                   contentBytes
+            );
+            logger.info( "reducedBytes: {}",
+                         reducedBytes.length );
 
             boolean isModerationRequired = !isExplicit && !isNsfwChannel;
 
             ArrayList<ContentModerationServiceEvaluation> evaluations
                     = new ArrayList<>();
+
             if ( isModerationRequired ) {
-                ACSContentModeratorModerationServiceClient
-                        azureContentModerationService
-                        = (ACSContentModeratorModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
-                                                                                                .get( ContentModerationServiceName.ACS_CONTENT_MODERATOR );
-                ContentModerationServiceEvaluation response;
-
                 try {
-                    response
-                            = azureContentModerationService.requestImageContentModeration( event,
-                                                                                           fileDownloadMetadata.mimeType(),
-                                                                                           compressedBytes );
-                }
-                catch ( IOException | InterruptedException e ) {
-                    logger.info( e.getMessage() );
-                    response = null;
-                }
+                    ACSContentModeratorModerationServiceClient
+                            azureContentModerationService
+                            = (ACSContentModeratorModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
+                                                                                                    .get( ContentModerationServiceName.ACS_CONTENT_MODERATOR );
+                    ContentModerationServiceEvaluation response;
 
-                if ( response != null ) {
-                    evaluations.add( response );
-                    if ( response.result ) {
-                        isModerationRequired = false;
-                    }
-                }
-
-                if ( isModerationRequired ) {
-                    AWSRekognitionModerationServiceClient
-                            awsRekognitionModerationServiceClient
-                            = (AWSRekognitionModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
-                                                                                               .get( ContentModerationServiceName.AWS_REKOGNITION );
                     try {
                         response
-                                = awsRekognitionModerationServiceClient.requestImageContentModeration( event,
-                                                                                                       fileDownloadMetadata.mimeType(),
-                                                                                                       compressedBytes );
+                                = azureContentModerationService.requestImageContentModeration( event,
+                                                                                               fileDownloadMetadata.mimeType(),
+                                                                                               reducedBytes );
                     }
-
                     catch ( IOException | InterruptedException e ) {
                         logger.info( e.getMessage() );
                         response = null;
@@ -131,12 +105,67 @@ class ContentModerationServiceClient {
 
                     if ( response != null ) {
                         evaluations.add( response );
+                        if ( response.result ) {
+                            isModerationRequired = false;
+                        }
                     }
+
+                    if ( isModerationRequired ) {
+                        AWSRekognitionModerationServiceClient
+                                awsRekognitionModerationServiceClient
+                                = (AWSRekognitionModerationServiceClient) ContentModerationRegistry.getContentModerationServices()
+                                                                                                   .get( ContentModerationServiceName.AWS_REKOGNITION );
+                        try {
+                            response
+                                    = awsRekognitionModerationServiceClient.requestImageContentModeration( event,
+                                                                                                           fileDownloadMetadata.mimeType(),
+                                                                                                           reducedBytes );
+                        }
+                        catch ( IOException | InterruptedException e ) {
+                            logger.info( e.getMessage() );
+                            response = null;
+                        }
+
+                        if ( response != null ) {
+                            evaluations.add( response );
+                        }
+                    }
+                    this.contentModerationServiceEvaluations = evaluations;
                 }
-                this.contentModerationServiceEvaluations = evaluations;
+                catch ( Exception e ) {
+                    this.contentModerationServiceEvaluations = null;
+                }
             } else {
                 this.contentModerationServiceEvaluations = null;
             }
+        }
+
+        private static
+        byte[] getReducedBytes( FileDownloadMetadata fileDownloadMetadata,
+                                byte[] contentBytes ) throws IOException
+        {
+            byte[]    reducedBytes           = contentBytes;
+            final int contentSizeBinaryLimit = 4194304;
+
+            if ( fileDownloadMetadata.mimeType().matches( "^image/.*" ) ) {
+                if ( reducedBytes.length > contentSizeBinaryLimit ) {
+                    byte[] scaledImageBytes = new ImageScaler( reducedBytes,
+                                                               fileDownloadMetadata.fileExtension() ).getScaled();
+                    if ( scaledImageBytes.length <= contentBytes.length ) {
+                        reducedBytes = scaledImageBytes;
+                    }
+                }
+                if ( reducedBytes.length > contentSizeBinaryLimit ) {
+                    byte[] compressedImageBytes
+                            = new ImageCompressor( reducedBytes,
+                                                   fileDownloadMetadata.fileExtension() ).getCompressed();
+                    if ( compressedImageBytes.length <= contentBytes.length ) {
+                        reducedBytes = compressedImageBytes;
+                    }
+                }
+
+            }
+            return reducedBytes;
         }
 
         public

@@ -23,13 +23,14 @@ class ACSContentModeratorModerationServiceClient extends ContentModerationServic
     private final String      moderationServiceUrl;
     private final RateLimiter rateLimiter;
 
+    private final int contentSizeBinaryLimit = 4194304;
+
     public
     ACSContentModeratorModerationServiceClient() {
         super( ACSContentModeratorModerationServiceClient.class );
         this.rateLimiter = new RateLimiter( 1,
                                             1_000 );
-        this.name
-                         = ACS_CONTENT_MODERATOR;
+        this.name        = ACS_CONTENT_MODERATOR;
 
         this.moderationServiceUrl
                 = "https://discordbotcontentmod.cognitiveservices.azure.com/contentmoderator/moderate/v1.0/ProcessImage/Evaluate";

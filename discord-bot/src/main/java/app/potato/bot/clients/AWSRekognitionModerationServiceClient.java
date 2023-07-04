@@ -19,6 +19,8 @@ public
 class AWSRekognitionModerationServiceClient extends ContentModerationServiceClient {
     private final RekognitionClient rekognitionClient;
 
+    private final int contentSizeBinaryLimit = 5242880;
+
     public
     AWSRekognitionModerationServiceClient()
     {

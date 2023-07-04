@@ -31,6 +31,7 @@ class ImageCompressor {
     byte[] getCompressed() throws IOException {
 
         if ( compressedImageData == null ) {
+//            long methodStart = System.nanoTime();
             ByteArrayInputStream imageDataStream
                     = new ByteArrayInputStream( sourceImageData );
 
@@ -41,7 +42,7 @@ class ImageCompressor {
                              .next()
                              .getDefaultWriteParam();
             param.setCompressionMode( ImageWriteParam.MODE_EXPLICIT );
-            param.setCompressionQuality( 0.5f );
+            param.setCompressionQuality( 0.500f );
 
             ByteArrayOutputStream compressedImageOutputStream
                     = new ByteArrayOutputStream();
@@ -55,6 +56,9 @@ class ImageCompressor {
                 logger.info( e.getMessage() );
             }
 
+//            long methodEnd = System.nanoTime();
+//            logger.info( "Time to Compress Image: {}ms",
+//                         ( methodEnd - methodStart ) / 1_000_000 );
             compressedImageData = compressedImageOutputStream.toByteArray();
         }
 
