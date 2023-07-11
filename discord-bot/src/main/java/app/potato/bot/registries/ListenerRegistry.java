@@ -1,14 +1,16 @@
 package app.potato.bot.registries;
 
-import app.potato.bot.listeners.Listener;
+import app.potato.bot.listeners.MessageReceivedListener;
+import app.potato.bot.listeners.ReadyListener;
+import app.potato.bot.listeners.SlashCommandInteractionListener;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 public final
 class ListenerRegistry {
@@ -20,24 +22,14 @@ class ListenerRegistry {
 
     private
     ListenerRegistry() {
-        listeners
-                = new CopyOnWriteArrayList<>( new Reflections( "app.potato.bot.listeners" ).getSubTypesOf( Listener.class )
-                                                                                           .stream()
-                                                                                           .map( aClass -> {
-                                                                                               try {
-                                                                                                   ListenerAdapter
-                                                                                                           inst
-                                                                                                           = aClass.getDeclaredConstructor()
-                                                                                                                   .newInstance();
-                                                                                                   logger.info( "{} registered",
-                                                                                                                aClass.getName() );
-                                                                                                   return inst;
-                                                                                               }
-                                                                                               catch ( InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
-                                                                                                   throw new RuntimeException( e );
-                                                                                               }
-                                                                                           } )
-                                                                                           .toList() );
+        listeners = Arrays.stream( new ListenerAdapter[]{
+                new MessageReceivedListener(),
+                new ReadyListener(),
+                new SlashCommandInteractionListener()
+        } ).peek( aClass -> {
+            logger.info( "{} registered",
+                         aClass.getClass().getName() );
+        } ).collect( Collectors.toCollection( CopyOnWriteArrayList::new ) );
     }
 
     public static

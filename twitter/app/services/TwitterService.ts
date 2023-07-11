@@ -46,9 +46,7 @@ export class TwitterService {
     ];
   }
 
-  async getTweet(tweetUrl: string, fallback = true): Promise<Tweet> {
-    const { pathname } = new URL(tweetUrl);
-    const tweetId = pathname.split('/').splice(-1)[0];
+  async getTweet(tweetId: string, fallback = true): Promise<Tweet> {
 
     if (!this.csrfToken) this.regenerateCsrfToken();
     if (!this.guestToken) await this.regenerateGuestToken();

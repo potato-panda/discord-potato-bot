@@ -35,7 +35,7 @@ export class TwitterPostRequestListener extends Listener<TwitterPostRequestEvent
         possibly_sensitive,
         created_at,
         reply_count,
-      } = await this.service.getTweet(data.url);
+      } = await this.service.getTweet(data.tweetId);
 
       const reply: TwitterPost.Reply = {
         metadata: {

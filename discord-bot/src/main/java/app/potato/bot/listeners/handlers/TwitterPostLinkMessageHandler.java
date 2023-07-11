@@ -13,13 +13,13 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static app.potato.bot.clients.TwitterServiceMessageClient.TwitterPostLinkRequestReply.TwitterPostMetadata;
@@ -53,13 +53,26 @@ class TwitterPostLinkMessageHandler extends MessageHandler {
 
         String string = getSanitizedMessageTextContent( event );
 
-        String regex = "https://twitter.com/\\w+/status/(?<id>\\d+)(\\?.*)?";
+        String regex = "^https://twitter\\.com/\\w+/status/(?<id>\\d+).*";
+
+        Pattern pattern = Pattern.compile( regex );
 
         // TODO Split link url and optional flags
         ArrayList<String> links
                 = Arrays.stream( string.split( "\\s(?=\\S*https://)" ) )
-                        .filter( s -> s.matches( regex ) )
-                        .collect( Collectors.toCollection( ArrayList::new ) );
+                        .reduce( new ArrayList<>(),
+                                 ( s, n ) -> {
+                                     Matcher matcher = pattern.matcher( n );
+                                     if ( matcher.matches() ) {
+                                         String id = matcher.group( "id" );
+                                         if ( !id.isEmpty() ) s.add( id );
+                                     }
+                                     return s;
+                                 },
+                                 ( strings, strings2 ) -> {
+                                     strings.addAll( strings2 );
+                                     return strings;
+                                 } );
 
         List<TwitterPostLinkServiceClientRequestOptions> requests
                 = buildTwitterPostLinkServiceRequest( links );
@@ -159,15 +172,10 @@ class TwitterPostLinkMessageHandler extends MessageHandler {
         return splits.stream()
                      .reduce( new ArrayList<TwitterPostLinkServiceClientRequestOptions>() {},
                               ( twitterPostLinkRequests, s ) -> {
-                                  try {
-                                      URL url = new URL( s );
-                                      TwitterPostLinkServiceClientRequestOptions
-                                              request
-                                              = new TwitterPostLinkServiceClientRequestOptions( url.toString() );
-                                      twitterPostLinkRequests.add( request );
-                                  }
-                                  catch ( MalformedURLException ignored ) {
-                                  }
+                                  TwitterPostLinkServiceClientRequestOptions
+                                          request
+                                          = new TwitterPostLinkServiceClientRequestOptions( s );
+                                  twitterPostLinkRequests.add( request );
                                   return twitterPostLinkRequests;
                               },
                               ( twitterPostLinkRequests, twitterPostLinkRequests2 ) -> {

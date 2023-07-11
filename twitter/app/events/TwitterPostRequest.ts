@@ -2,7 +2,7 @@ import { FileDownload } from '../utils/download';
 
 export namespace TwitterPost {
   export interface Request {
-    url: string;
+    tweetId: string;
   }
 
   export interface Metadata {
